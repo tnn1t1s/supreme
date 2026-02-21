@@ -101,3 +101,38 @@ decision-adk:
 # Web UI analysis
 decision-adk-web:
     tools/bin/decision-adk web
+
+# === ADK Session Retrieval ===
+sessions := "tools/bin/adk-sessions"
+
+# List ADK sessions
+adk-list:
+    {{venv}} {{sessions}} list
+
+# Show full pipeline for a session
+adk-show id:
+    {{venv}} {{sessions}} show "{{id}}"
+
+# Show single agent's prompt/response pair
+adk-agent id a:
+    {{venv}} {{sessions}} show "{{id}}" -a {{a}}
+
+# Show specific query in a session
+adk-query id q:
+    {{venv}} {{sessions}} show "{{id}}" -q {{q}}
+
+# Show with system prompts included
+adk-show-prompts id:
+    {{venv}} {{sessions}} show "{{id}}" --show-prompt
+
+# JSON export of a session
+adk-export id:
+    {{venv}} {{sessions}} show "{{id}}" --json --include-tools
+
+# List agent prompts
+adk-agents:
+    {{venv}} {{sessions}} agents
+
+# Print a specific agent's system prompt
+adk-prompt a:
+    {{venv}} {{sessions}} prompt {{a}}

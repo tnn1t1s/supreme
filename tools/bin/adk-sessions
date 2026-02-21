@@ -1,0 +1,318 @@
+#!/usr/bin/env python3
+"""adk-sessions: Retrieve prompt/response pairs from ADK session history.
+
+Reads the Google ADK session database and pairs each agent's system prompt
+(from decision_rag_adk/prompts/) with its actual output from pipeline runs.
+
+Usage:
+  adk-sessions list                                # List all sessions
+  adk-sessions show SESSION_ID                     # Full pipeline for a session
+  adk-sessions show SESSION_ID -a retriever        # Single agent's pair
+  adk-sessions show SESSION_ID -q 2               # Specific query in session
+  adk-sessions show SESSION_ID --json              # JSON output
+  adk-sessions show SESSION_ID --show-prompt       # Include system prompts
+  adk-sessions agents                              # List agent prompt lengths
+  adk-sessions prompt retriever                    # Print an agent's system prompt
+"""
+
+import argparse
+import json
+import sqlite3
+import sys
+from datetime import datetime
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DB_PATH = PROJECT_ROOT / "decision_rag_adk" / ".adk" / "session.db"
+
+AGENT_ORDER = [
+    "retriever",
+    "join_analysis",
+    "holding_candidate",
+    "fracture_classifier",
+    "marks_evaluator",
+    "synthesis",
+]
+
+
+def load_prompts():
+    sys.path.insert(0, str(PROJECT_ROOT))
+    from decision_rag_adk.prompts import (
+        RETRIEVER_INSTRUCTION,
+        JOIN_ANALYSIS_INSTRUCTION,
+        HOLDING_INSTRUCTION,
+        FRACTURE_INSTRUCTION,
+        MARKS_INSTRUCTION,
+        SYNTHESIS_INSTRUCTION,
+    )
+    return {
+        "retriever": RETRIEVER_INSTRUCTION,
+        "join_analysis": JOIN_ANALYSIS_INSTRUCTION,
+        "holding_candidate": HOLDING_INSTRUCTION,
+        "fracture_classifier": FRACTURE_INSTRUCTION,
+        "marks_evaluator": MARKS_INSTRUCTION,
+        "synthesis": SYNTHESIS_INSTRUCTION,
+    }
+
+
+def get_db():
+    if not DB_PATH.exists():
+        print(f"ERROR: Session DB not found at {DB_PATH}", file=sys.stderr)
+        print("Run the ADK pipeline first: tools/bin/decision-adk", file=sys.stderr)
+        sys.exit(1)
+    return sqlite3.connect(str(DB_PATH))
+
+
+def parse_event(row):
+    data = json.loads(row[0])
+    parts = data.get("content", {}).get("parts", [])
+    text_parts = []
+    fn_calls = []
+    fn_responses = []
+    for p in parts:
+        if "text" in p:
+            text_parts.append(p["text"])
+        if "function_call" in p:
+            fn_calls.append(p["function_call"])
+        if "function_response" in p:
+            fn_responses.append(p["function_response"])
+    return {
+        "id": data.get("id"),
+        "author": data.get("author", "unknown"),
+        "timestamp": data.get("timestamp"),
+        "invocation_id": data.get("invocation_id"),
+        "text": "\n".join(text_parts) if text_parts else None,
+        "function_calls": fn_calls or None,
+        "function_responses": fn_responses or None,
+    }
+
+
+def resolve_session_id(prefix):
+    db = get_db()
+    rows = db.execute(
+        "SELECT id FROM sessions WHERE id LIKE ? ORDER BY update_time DESC",
+        (prefix + "%",),
+    ).fetchall()
+    db.close()
+    if not rows:
+        print(f"No session matching '{prefix}'", file=sys.stderr)
+        sys.exit(1)
+    if len(rows) > 1 and not any(r[0] == prefix for r in rows):
+        print(f"Ambiguous prefix '{prefix}' matches {len(rows)} sessions:", file=sys.stderr)
+        for r in rows:
+            print(f"  {r[0]}", file=sys.stderr)
+        sys.exit(1)
+    return rows[0][0]
+
+
+def load_events(session_id):
+    db = get_db()
+    rows = db.execute(
+        "SELECT event_data FROM events WHERE session_id = ? ORDER BY timestamp ASC",
+        (session_id,),
+    ).fetchall()
+    db.close()
+    return [parse_event(r) for r in rows]
+
+
+def group_into_turns(events):
+    turns = []
+    current_query = None
+    current_agents = {}
+    query_num = 0
+
+    for ev in events:
+        if ev["author"] == "user" and ev["text"]:
+            if current_query is not None:
+                turns.append({
+                    "query_num": query_num,
+                    "query": current_query,
+                    "agents": current_agents,
+                })
+            query_num += 1
+            current_query = ev["text"]
+            current_agents = {}
+        elif ev["author"] != "user":
+            agent = ev["author"]
+            if agent not in current_agents:
+                current_agents[agent] = {
+                    "text_responses": [],
+                    "tool_calls": [],
+                    "tool_responses": [],
+                }
+            entry = current_agents[agent]
+            if ev["text"]:
+                entry["text_responses"].append(ev["text"])
+            if ev["function_calls"]:
+                entry["tool_calls"].extend(ev["function_calls"])
+            if ev["function_responses"]:
+                entry["tool_responses"].extend(ev["function_responses"])
+
+    if current_query is not None:
+        turns.append({
+            "query_num": query_num,
+            "query": current_query,
+            "agents": current_agents,
+        })
+
+    return turns
+
+
+def cmd_list(args):
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    rows = db.execute("""
+        SELECT s.id, s.user_id, s.create_time, s.update_time,
+          (SELECT COUNT(*) FROM events e
+           WHERE e.session_id = s.id AND e.app_name = s.app_name
+           AND e.user_id = s.user_id) as event_count
+        FROM sessions s ORDER BY s.update_time DESC
+    """).fetchall()
+    db.close()
+
+    if not rows:
+        print("No sessions found.")
+        return
+
+    for r in rows:
+        created = datetime.fromtimestamp(r["create_time"]).strftime("%Y-%m-%d %H:%M")
+        evts = load_events(r["id"])
+        user_queries = [e["text"] for e in evts if e["author"] == "user" and e["text"]]
+        agents_seen = sorted(set(e["author"] for e in evts if e["author"] != "user"))
+        preview = user_queries[0][:70] + "..." if user_queries and len(user_queries[0]) > 70 else (user_queries[0] if user_queries else "—")
+        print(f"  {r['id']}")
+        print(f"    created={created}  user={r['user_id']}  events={r['event_count']}  queries={len(user_queries)}")
+        print(f"    agents: {', '.join(agents_seen)}")
+        print(f"    q1: {preview}")
+        print()
+
+
+def cmd_show(args):
+    args.session_id = resolve_session_id(args.session_id)
+    events = load_events(args.session_id)
+    if not events:
+        print(f"No events found for session {args.session_id}", file=sys.stderr)
+        sys.exit(1)
+
+    turns = group_into_turns(events)
+    prompts = load_prompts()
+
+    if args.query:
+        idx = args.query - 1
+        if idx < 0 or idx >= len(turns):
+            print(f"Query {args.query} not found. Session has {len(turns)} queries.", file=sys.stderr)
+            sys.exit(1)
+        turns = [turns[idx]]
+
+    if args.json:
+        output = []
+        for turn in turns:
+            turn_data = {
+                "query_num": turn["query_num"],
+                "user_query": turn["query"],
+                "agents": {},
+            }
+            for agent_name in AGENT_ORDER:
+                if args.agent and agent_name != args.agent:
+                    continue
+                agent_data = turn["agents"].get(agent_name)
+                if not agent_data:
+                    continue
+                pair = {
+                    "system_prompt": prompts.get(agent_name, ""),
+                    "response": "\n".join(agent_data["text_responses"]),
+                    "tool_calls_count": len(agent_data["tool_calls"]),
+                    "tool_responses_count": len(agent_data["tool_responses"]),
+                }
+                if args.include_tools:
+                    pair["tool_calls"] = agent_data["tool_calls"]
+                    pair["tool_responses"] = agent_data["tool_responses"]
+                turn_data["agents"][agent_name] = pair
+            output.append(turn_data)
+        print(json.dumps(output, indent=2))
+        return
+
+    for turn in turns:
+        print(f"{'=' * 72}")
+        print(f"  QUERY {turn['query_num']}")
+        print(f"{'=' * 72}")
+        print(f"\n{turn['query']}\n")
+
+        for agent_name in AGENT_ORDER:
+            if args.agent and agent_name != args.agent:
+                continue
+            agent_data = turn["agents"].get(agent_name)
+            if not agent_data:
+                continue
+
+            print(f"{'─' * 72}")
+            print(f"  AGENT: {agent_name}")
+            print(f"{'─' * 72}")
+
+            if args.show_prompt:
+                prompt = prompts.get(agent_name, "")
+                print(f"\n  [SYSTEM PROMPT] ({len(prompt)} chars)\n")
+                for line in prompt.split("\n"):
+                    print(f"  | {line}")
+                print()
+
+            tc = len(agent_data["tool_calls"])
+            tr = len(agent_data["tool_responses"])
+            if tc > 0:
+                tool_names = set(c.get("name", "?") for c in agent_data["tool_calls"])
+                print(f"  tools: {', '.join(sorted(tool_names))} ({tc} calls, {tr} responses)")
+
+            response = "\n".join(agent_data["text_responses"])
+            if response:
+                print(f"\n  [RESPONSE] ({len(response)} chars)\n")
+                print(response[:3000])
+                if len(response) > 3000:
+                    print(f"\n  ... ({len(response) - 3000} more chars, use --json for full)")
+            print()
+
+
+def cmd_agents(args):
+    prompts = load_prompts()
+    for name in AGENT_ORDER:
+        prompt = prompts.get(name, "")
+        lines = prompt.count("\n") + 1
+        print(f"  {name:25s}  {len(prompt):5d} chars  {lines:3d} lines")
+
+
+def cmd_prompt(args):
+    prompts = load_prompts()
+    if args.agent not in prompts:
+        print(f"Unknown agent: {args.agent}", file=sys.stderr)
+        print(f"Available: {', '.join(AGENT_ORDER)}", file=sys.stderr)
+        sys.exit(1)
+    print(prompts[args.agent])
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="adk-sessions",
+        description="Retrieve prompt/response pairs from ADK session history",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("list", help="List all sessions")
+
+    p_show = sub.add_parser("show", help="Show prompt/response pairs for a session")
+    p_show.add_argument("session_id", help="Session UUID (or prefix)")
+    p_show.add_argument("-a", "--agent", choices=AGENT_ORDER, help="Filter to single agent")
+    p_show.add_argument("-q", "--query", type=int, help="Query number (1-indexed)")
+    p_show.add_argument("--json", action="store_true", help="JSON output")
+    p_show.add_argument("--show-prompt", action="store_true", help="Include system prompts")
+    p_show.add_argument("--include-tools", action="store_true", help="Include tool call/response details (JSON only)")
+
+    sub.add_parser("agents", help="List agent prompt lengths")
+
+    p_prompt = sub.add_parser("prompt", help="Print an agent's system prompt")
+    p_prompt.add_argument("agent", choices=AGENT_ORDER, help="Agent name")
+
+    args = parser.parse_args()
+    {"list": cmd_list, "show": cmd_show, "agents": cmd_agents, "prompt": cmd_prompt}[args.command](args)
+
+
+if __name__ == "__main__":
+    main()

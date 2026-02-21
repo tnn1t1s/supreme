@@ -26,6 +26,8 @@ Read [run-03-multi-query/](run-03-multi-query/). Four queries in one session:
 2. **[Hypothetical IEEPA amendment](run-03-multi-query/query-2-synthesis.md)** — which fractures survive if Congress fixes the statute
 3. **[Misapplication risk](run-03-multi-query/query-3-synthesis.md)** — how lower courts could get this wrong (the most practically useful output)
 4. **[Populist blog response](run-03-multi-query/query-4-synthesis.md)** — clerical voice under political pressure
+5. **[Adversarial critique response](run-03-multi-query/query-5-synthesis.md)** — non-partisan memorandum rebutting a political critique
+6. **[Left-leaning perspective analysis](run-03-multi-query/query-6-synthesis.md)** — where the "rebuke of Trumpism" reading is strongest and weakest
 
 ### If you want to see inside the pipeline
 Each run directory contains the raw output of every agent stage. Read them in order:
@@ -43,7 +45,7 @@ Each run directory contains the raw output of every agent stage. Read them in or
 |-----|-------|---------|-------|
 | [run-01-ieepa-basic](run-01-ieepa-basic/) | Does IEEPA authorize tariffs? | 1 | 7 |
 | [run-02-ieepa-rerun](run-02-ieepa-rerun/) | Does IEEPA authorize tariffs? (rerun) | 1 | 7 |
-| [run-03-multi-query](run-03-multi-query/) | Narrowest principle, hypothetical, misapplication, blog response | 4 | 28 |
+| [run-03-multi-query](run-03-multi-query/) | Narrowest principle, hypothetical, misapplication, blog response, adversarial critique, left-leaning perspective | 6 | 42 |
 
 ## Key Findings Across All Runs
 
