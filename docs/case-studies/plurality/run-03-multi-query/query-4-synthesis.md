@@ -1,5 +1,9 @@
 # synthesis
 
+> **Query:** Now imagine your office (you are a clerk) is asked to respond to a populist blog post with a structured, non partisan breakdown. "Josh Marshall of Talking Points Memo noted that 'today's decision is...an indictment of the Court.'" Produce a brief we can distribute.
+
+---
+
 **MEMORANDUM**
 
 **TO:** Interested Parties

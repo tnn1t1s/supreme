@@ -1,5 +1,9 @@
 # synthesis
 
+> **Query:** Does IEEPA authorize the President to impose tariffs?
+
+---
+
 Based on the institutional analysis of the Supreme Court's decision in *Learning Resources, Inc. v. Trump*, here is a comprehensive synthesis of the findings.
 
 ### 1. Query & Scope

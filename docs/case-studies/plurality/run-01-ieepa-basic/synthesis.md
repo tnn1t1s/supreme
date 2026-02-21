@@ -1,5 +1,9 @@
 # synthesis
 
+> **Query:** Does IEEPA authorize the President to impose tariffs?
+
+---
+
 ### **Analysis of *Learning Resources, Inc. v. Trump***
 **Docket:** 24-1287, 25-250
 **Decision Date:** 2026-02-20
