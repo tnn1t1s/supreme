@@ -1,0 +1,350 @@
+#!/usr/bin/env python3
+"""extract-decision: Extract Supreme Court slip opinion into tagged blocks for RAG ingestion.
+
+Reads a slip opinion PDF, splits by justice/opinion type, segments into
+legally meaningful blocks, writes markdown files with YAML frontmatter,
+and generates a manifest.json.
+"""
+
+import json
+import os
+import re
+import textwrap
+from pathlib import Path
+
+import pdfplumber
+
+CASE = "Learning Resources, Inc. v. Trump"
+DOCKETS = ["24-1287", "25-250"]
+DATE = "2026-02-20"
+SOURCE_URL = "https://www.supremecourt.gov/opinions/25pdf/24-1287_4gcj.pdf"
+
+DECISION_DIR = Path(__file__).resolve().parent.parent.parent / "docs" / "decision" / f"{DATE}_learning-resources-v-trump_24-1287"
+PDF_PATH = DECISION_DIR / "source" / "24-1287_slip_opinion.pdf"
+EXTRACTED_DIR = DECISION_DIR / "extracted"
+BLOCKS_DIR = DECISION_DIR / "blocks"
+
+OPINIONS = [
+    {"justice": "Syllabus",  "type": "syllabus",               "pages": (1, 6),    "file": "syllabus"},
+    {"justice": "Roberts",   "type": "majority",                "pages": (7, 27),   "file": "roberts_majority"},
+    {"justice": "Gorsuch",   "type": "concurrence",             "pages": (28, 73),  "file": "gorsuch_concurrence"},
+    {"justice": "Barrett",   "type": "concurrence",             "pages": (74, 77),  "file": "barrett_concurrence"},
+    {"justice": "Kagan",     "type": "concurrence_in_part",     "pages": (78, 84),  "file": "kagan_concurrence_in_part"},
+    {"justice": "Jackson",   "type": "concurrence_in_part",     "pages": (85, 89),  "file": "jackson_concurrence_in_part"},
+    {"justice": "Thomas",    "type": "dissent",                 "pages": (90, 107), "file": "thomas_dissent"},
+    {"justice": "Kavanaugh", "type": "dissent",                 "pages": (108, 170),"file": "kavanaugh_dissent"},
+]
+
+DOCTRINE_PATTERNS = {
+    "major_questions": [
+        r"major questions",
+        r"major.questions doctrine",
+        r"extraordinary.{0,30}delegat",
+        r"clear congressional authorization",
+        r"economic and political significance",
+        r"transformative expansion",
+    ],
+    "clear_statement": [
+        r"clear.statement rule",
+        r"clear statement",
+        r"express words",
+        r"expressly (given|conferred|authorized)",
+        r"clear(ly)? authoriz",
+        r"must.*point to.*clear",
+    ],
+    "nondelegation": [
+        r"nondelegation",
+        r"non.delegation",
+        r"intelligible principle",
+        r"legislative power.*delegat",
+        r"delegat.*legislative power",
+        r"Article I.*vest",
+    ],
+    "separation_of_powers": [
+        r"separation of powers",
+        r"legislative.{0,15}executive",
+        r"executive.{0,15}legislative",
+        r"Article I.*Article II",
+        r"Vesting Clause",
+        r"constitutional structure",
+    ],
+    "taxing_power": [
+        r"taxing power",
+        r"power to tax",
+        r"power to impose tariffs",
+        r"Taxes, Duties, Imposts",
+        r"revenue.raising",
+        r"birth.right power",
+        r"access to the pockets",
+    ],
+    "statutory_interpretation": [
+        r"ordinary meaning",
+        r"statutory (text|construction|interpretation)",
+        r"plain (meaning|text|reading)",
+        r"neighboring words",
+        r"noscitur a sociis",
+        r"textual(ist|ism)?",
+    ],
+    "foreign_affairs": [
+        r"foreign affairs",
+        r"foreign (policy|relations|commerce)",
+        r"national security",
+        r"external affairs",
+        r"warmaking power",
+        r"Commander in Chief",
+    ],
+    "emergency_powers": [
+        r"emergency power",
+        r"national emergenc",
+        r"unusual and extraordinary",
+        r"IEEPA.*emergenc",
+        r"emergenc.*IEEPA",
+        r"Youngstown",
+    ],
+    "congressional_delegation": [
+        r"Congress.*delegat",
+        r"delegat.*Congress",
+        r"tariff.*delegat",
+        r"delegat.*tariff",
+        r"historical.*delegat",
+        r"delegation.*statute",
+    ],
+}
+
+DOCTRINE_PRIMARY_THRESHOLD = 3
+DOCTRINE_SECONDARY_THRESHOLD = 1
+
+
+def classify_doctrines(text):
+    text_lower = text.lower()
+    scores = {}
+    for doctrine, patterns in DOCTRINE_PATTERNS.items():
+        count = 0
+        for pat in patterns:
+            count += len(re.findall(pat, text_lower))
+        if count >= DOCTRINE_SECONDARY_THRESHOLD:
+            scores[doctrine] = count
+
+    ranked = sorted(scores.items(), key=lambda x: -x[1])
+
+    primary = []
+    secondary = []
+    for doctrine, count in ranked:
+        if count >= DOCTRINE_PRIMARY_THRESHOLD and len(primary) < 3:
+            primary.append(doctrine)
+        elif len(secondary) < 2:
+            secondary.append(doctrine)
+        if len(primary) + len(secondary) >= 5:
+            break
+
+    return primary, secondary
+
+
+def extract_text_pages(pdf_path, start_page, end_page):
+    pages = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for i in range(start_page - 1, min(end_page, len(pdf.pages))):
+            text = pdf.pages[i].extract_text() or ""
+            pages.append({"page_num": i + 1, "text": text})
+    return pages
+
+
+def clean_text(text):
+    text = re.sub(r"Cite as: 607 U\.\s*S\.\s*_+\s*\(\d{4}\)\s*\d+", "", text)
+    text = re.sub(r"\d+\s+LEARNING RESOURCES, INC\. v\. TRUMP", "", text)
+    text = re.sub(r"Opinion of the Court", "", text)
+    text = re.sub(r"Opinion of RO ?BER ?TS, C\. ?J\.", "", text)
+    text = re.sub(r"Opinion o ?f ? ?J ?ACKSON, J\.", "", text)
+    text = re.sub(r"Opinion of KAGAN, J\.", "", text)
+    text = re.sub(r"GORSUCH, J\., concurring", "", text)
+    text = re.sub(r"BARRETT, J\., concurring", "", text)
+    text = re.sub(r"THOMAS, J\., dissenting", "", text)
+    text = re.sub(r"KAVANAUGH, J\., dissenting", "", text)
+    text = re.sub(r"Syllabus", "", text)
+    text = re.sub(r"\(Slip Opinion\)\s+OCTOBER TERM, \d+\s+\d+", "", text)
+    text = re.sub(r"SUPREME COURT OF THE UNITED STATES\s*_{2,}", "", text)
+    text = re.sub(r"Nos?\.\s+24.1287\s+and\s+25.250\s*_{0,}", "", text)
+    text = re.sub(r"NOTICE:.*?formal errors\.", "", text, flags=re.DOTALL)
+    text = re.sub(r"NOTE:.*?337\.", "", text, flags=re.DOTALL)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def detect_section_heading(line):
+    line = line.strip()
+    if re.match(r"^[IVX]+$", line):
+        return line
+    if re.match(r"^[A-D]$", line):
+        return line
+    if re.match(r"^[1-4]$", line):
+        return line
+    if re.match(r"^[IVX]+[-–][A-D][-–]?\d?$", line):
+        return line
+    if "concurring" in line.lower() and "JUSTICE" in line:
+        return line
+    if "dissenting" in line.lower() and "JUSTICE" in line:
+        return line
+    return None
+
+
+def segment_into_blocks(pages_data, min_words=80, max_words=500):
+    blocks = []
+    current_block = {"text": "", "page_start": None, "page_end": None, "title": ""}
+
+    for page_data in pages_data:
+        page_num = page_data["page_num"]
+        text = clean_text(page_data["text"])
+        if not text.strip():
+            continue
+
+        lines = text.split("\n")
+        for line in lines:
+            heading = detect_section_heading(line)
+
+            if heading and len(current_block["text"].split()) >= min_words:
+                if current_block["text"].strip():
+                    current_block["page_end"] = page_num
+                    blocks.append(dict(current_block))
+                current_block = {"text": "", "page_start": page_num, "page_end": page_num, "title": heading}
+            else:
+                if current_block["page_start"] is None:
+                    current_block["page_start"] = page_num
+                current_block["text"] += line + "\n"
+                current_block["page_end"] = page_num
+
+                word_count = len(current_block["text"].split())
+                if word_count >= max_words:
+                    paragraphs = current_block["text"].strip().split("\n\n")
+                    if len(paragraphs) > 1:
+                        split_text = "\n\n".join(paragraphs[:-1])
+                        remainder = paragraphs[-1]
+                        current_block["text"] = split_text
+                        blocks.append(dict(current_block))
+                        current_block = {
+                            "text": remainder + "\n",
+                            "page_start": page_num,
+                            "page_end": page_num,
+                            "title": "",
+                        }
+
+    if current_block["text"].strip():
+        blocks.append(dict(current_block))
+
+    return blocks
+
+
+def write_block(block_dir, block_num, block, justice, opinion_type):
+    block_id = f"24-1287_{justice.lower()}_{opinion_type}_{block_num:04d}"
+    title = block["title"] or f"Block {block_num}"
+
+    primary, secondary = classify_doctrines(block["text"])
+    primary_str = ",".join(primary) if primary else "none"
+    secondary_str = ",".join(secondary) if secondary else "none"
+
+    frontmatter = f"""---
+justice: {justice}
+opinion_type: {opinion_type}
+title: "{title}"
+case: "{CASE}"
+docket: "{DOCKETS[0]}"
+date: "{DATE}"
+source: "supremecourt.gov slip opinion pdf"
+page_start: {block['page_start']}
+page_end: {block['page_end']}
+block_id: "{block_id}"
+doctrines_primary: "{primary_str}"
+doctrines_secondary: "{secondary_str}"
+---
+
+"""
+    content = frontmatter + block["text"].strip() + "\n"
+    filepath = block_dir / f"{block_num:04d}.md"
+    filepath.write_text(content)
+    return {
+        "block_id": block_id,
+        "justice": justice,
+        "opinion_type": opinion_type,
+        "title": title,
+        "page_start": block["page_start"],
+        "page_end": block["page_end"],
+        "file": str(filepath.relative_to(DECISION_DIR)),
+        "word_count": len(block["text"].split()),
+        "doctrines_primary": primary,
+        "doctrines_secondary": secondary,
+    }
+
+
+def main():
+    EXTRACTED_DIR.mkdir(parents=True, exist_ok=True)
+    BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+
+    manifest = {
+        "case": CASE,
+        "docket": DOCKETS,
+        "decided": DATE,
+        "sources": [
+            {"type": "pdf", "path": "source/24-1287_slip_opinion.pdf", "url": SOURCE_URL}
+        ],
+        "opinions": [],
+        "blocks": [],
+    }
+
+    total_blocks = 0
+
+    for opinion in OPINIONS:
+        justice = opinion["justice"]
+        op_type = opinion["type"]
+        start, end = opinion["pages"]
+        filename = opinion["file"]
+
+        print(f"Extracting {justice} ({op_type}): pages {start}-{end}")
+
+        pages_data = extract_text_pages(PDF_PATH, start, end)
+
+        full_text = "\n\n".join(clean_text(p["text"]) for p in pages_data)
+        extracted_path = EXTRACTED_DIR / f"{filename}.md"
+        extracted_path.write_text(f"# {justice} - {op_type}\n\n{full_text}\n")
+
+        blocks = segment_into_blocks(pages_data)
+        print(f"  -> {len(blocks)} blocks")
+
+        block_dir = BLOCKS_DIR / filename
+        block_dir.mkdir(parents=True, exist_ok=True)
+
+        block_manifests = []
+        for i, block in enumerate(blocks, 1):
+            bm = write_block(block_dir, i, block, justice, op_type)
+            block_manifests.append(bm)
+            total_blocks += 1
+
+        manifest["opinions"].append({
+            "justice": justice,
+            "type": op_type,
+            "file": f"extracted/{filename}.md",
+            "block_count": len(blocks),
+            "page_range": [start, end],
+        })
+        manifest["blocks"].extend(block_manifests)
+
+    manifest_path = DECISION_DIR / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+    doctrine_counts = {}
+    for bm in manifest["blocks"]:
+        for d in bm.get("doctrines_primary", []):
+            doctrine_counts[d] = doctrine_counts.get(d, 0) + 1
+        for d in bm.get("doctrines_secondary", []):
+            doctrine_counts[d] = doctrine_counts.get(d, 0) + 1
+
+    print(f"\nDone: {total_blocks} blocks across {len(OPINIONS)} opinions")
+    print(f"Manifest: {manifest_path}")
+    print(f"Blocks:   {BLOCKS_DIR}")
+    print(f"Extracted: {EXTRACTED_DIR}")
+    if doctrine_counts:
+        print(f"\nDoctrine distribution (primary+secondary):")
+        for d, c in sorted(doctrine_counts.items(), key=lambda x: -x[1]):
+            print(f"  {d:30s} {c:3d} blocks")
+
+
+if __name__ == "__main__":
+    main()

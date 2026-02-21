@@ -1,0 +1,31 @@
+# Credentials & secrets
+.env
+.env.*
+*.env
+decision_rag_adk/.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Vector indices (large binary, rebuild with just decision-ingest)
+.rag_index/
+.rag_index_decision/
+
+# ADK runtime
+.adk/
+**/.adk/
+
+# Claude Code
+.claude/
+
+# PDF source (large binary)
+docs/decision/*/source/*.pdf
+
+# OS
+.DS_Store
+
+# Data (podcast transcripts, not part of decision analysis)
+data/

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# decision-adk: Launch the Decision RAG ADK analysis pipeline
+#
+# Usage:
+#   decision-adk              # Interactive CLI
+#   decision-adk web          # Web UI (browser)
+#   decision-adk --help       # This help
+#
+# The pipeline runs 6 sequential agents:
+#   1. Retriever (flash)  → vector search + manifest load
+#   2. Join Analysis (pro) → justice-to-section mapping
+#   3. Holding (pro)       → candidate holding extraction
+#   4. Fracture (pro)      → cross-opinion divergence classification
+#   5. Marks (pro)         → narrowest-ground analysis
+#   6. Synthesis (pro)     → 8-section human-readable report
+
+set -euo pipefail
+
+PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+VENV_PYTHON="$PROJECT_ROOT/.venv/bin/python"
+ADK="$PROJECT_ROOT/.venv/bin/adk"
+AGENT_DIR="$PROJECT_ROOT/decision_rag_adk"
+
+if [[ ! -x "$ADK" ]]; then
+    echo "ERROR: adk not found at $ADK" >&2
+    echo "Run: $VENV_PYTHON -m pip install google-adk" >&2
+    exit 1
+fi
+
+if [[ ! -f "$AGENT_DIR/__init__.py" ]]; then
+    echo "ERROR: Agent package not found at $AGENT_DIR" >&2
+    exit 1
+fi
+
+case "${1:-run}" in
+    web)
+        shift
+        exec "$ADK" web "$PROJECT_ROOT" "$@"
+        ;;
+    run)
+        shift 2>/dev/null || true
+        exec "$ADK" run "$AGENT_DIR" "$@"
+        ;;
+    --help|-h)
+        head -16 "$0" | tail -14 | sed 's/^# \?//'
+        ;;
+    *)
+        exec "$ADK" run "$AGENT_DIR" "$@"
+        ;;
+esac

@@ -1,0 +1,971 @@
+{
+  "case": "Learning Resources, Inc. v. Trump",
+  "docket": [
+    "24-1287",
+    "25-250"
+  ],
+  "decided": "2026-02-20",
+  "sources": [
+    {
+      "type": "pdf",
+      "path": "source/24-1287_slip_opinion.pdf",
+      "url": "https://www.supremecourt.gov/opinions/25pdf/24-1287_4gcj.pdf"
+    }
+  ],
+  "opinions": [
+    {
+      "justice": "Syllabus",
+      "type": "syllabus",
+      "file": "extracted/syllabus.md",
+      "block_count": 2,
+      "page_range": [
+        1,
+        6
+      ]
+    },
+    {
+      "justice": "Roberts",
+      "type": "majority",
+      "file": "extracted/roberts_majority.md",
+      "block_count": 7,
+      "page_range": [
+        7,
+        27
+      ]
+    },
+    {
+      "justice": "Gorsuch",
+      "type": "concurrence",
+      "file": "extracted/gorsuch_concurrence.md",
+      "block_count": 16,
+      "page_range": [
+        28,
+        73
+      ]
+    },
+    {
+      "justice": "Barrett",
+      "type": "concurrence",
+      "file": "extracted/barrett_concurrence.md",
+      "block_count": 1,
+      "page_range": [
+        74,
+        77
+      ]
+    },
+    {
+      "justice": "Kagan",
+      "type": "concurrence_in_part",
+      "file": "extracted/kagan_concurrence_in_part.md",
+      "block_count": 2,
+      "page_range": [
+        78,
+        84
+      ]
+    },
+    {
+      "justice": "Jackson",
+      "type": "concurrence_in_part",
+      "file": "extracted/jackson_concurrence_in_part.md",
+      "block_count": 1,
+      "page_range": [
+        85,
+        89
+      ]
+    },
+    {
+      "justice": "Thomas",
+      "type": "dissent",
+      "file": "extracted/thomas_dissent.md",
+      "block_count": 9,
+      "page_range": [
+        90,
+        107
+      ]
+    },
+    {
+      "justice": "Kavanaugh",
+      "type": "dissent",
+      "file": "extracted/kavanaugh_dissent.md",
+      "block_count": 15,
+      "page_range": [
+        108,
+        170
+      ]
+    }
+  ],
+  "blocks": [
+    {
+      "block_id": "24-1287_syllabus_syllabus_0001",
+      "justice": "Syllabus",
+      "opinion_type": "syllabus",
+      "title": "Block 1",
+      "page_start": 1,
+      "page_end": 2,
+      "file": "blocks/syllabus/0001.md",
+      "word_count": 6,
+      "doctrines_primary": [],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "24-1287_syllabus_syllabus_0002",
+      "justice": "Syllabus",
+      "opinion_type": "syllabus",
+      "title": "Block 2",
+      "page_start": 2,
+      "page_end": 6,
+      "file": "blocks/syllabus/0002.md",
+      "word_count": 2257,
+      "doctrines_primary": [
+        "taxing_power",
+        "major_questions",
+        "foreign_affairs"
+      ],
+      "doctrines_secondary": [
+        "emergency_powers",
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_roberts_majority_0001",
+      "justice": "Roberts",
+      "opinion_type": "majority",
+      "title": "Block 1",
+      "page_start": 7,
+      "page_end": 8,
+      "file": "blocks/roberts_majority/0001.md",
+      "word_count": 132,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "emergency_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_roberts_majority_0002",
+      "justice": "Roberts",
+      "opinion_type": "majority",
+      "title": "I",
+      "page_start": 8,
+      "page_end": 9,
+      "file": "blocks/roberts_majority/0002.md",
+      "word_count": 611,
+      "doctrines_primary": [
+        "emergency_powers"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "24-1287_roberts_majority_0003",
+      "justice": "Roberts",
+      "opinion_type": "majority",
+      "title": "B",
+      "page_start": 9,
+      "page_end": 11,
+      "file": "blocks/roberts_majority/0003.md",
+      "word_count": 343,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "taxing_power"
+      ]
+    },
+    {
+      "block_id": "24-1287_roberts_majority_0004",
+      "justice": "Roberts",
+      "opinion_type": "majority",
+      "title": "II",
+      "page_start": 11,
+      "page_end": 13,
+      "file": "blocks/roberts_majority/0004.md",
+      "word_count": 707,
+      "doctrines_primary": [
+        "taxing_power"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "24-1287_roberts_majority_0005",
+      "justice": "Roberts",
+      "opinion_type": "majority",
+      "title": "2",
+      "page_start": 13,
+      "page_end": 20,
+      "file": "blocks/roberts_majority/0005.md",
+      "word_count": 2213,
+      "doctrines_primary": [
+        "major_questions",
+        "foreign_affairs",
+        "statutory_interpretation"
+      ],
+      "doctrines_secondary": [
+        "emergency_powers",
+        "congressional_delegation"
+      ]
+    },
+    {
+      "block_id": "24-1287_roberts_majority_0006",
+      "justice": "Roberts",
+      "opinion_type": "majority",
+      "title": "B",
+      "page_start": 20,
+      "page_end": 26,
+      "file": "blocks/roberts_majority/0006.md",
+      "word_count": 2116,
+      "doctrines_primary": [
+        "taxing_power",
+        "statutory_interpretation"
+      ],
+      "doctrines_secondary": [
+        "clear_statement",
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "24-1287_roberts_majority_0007",
+      "justice": "Roberts",
+      "opinion_type": "majority",
+      "title": "III",
+      "page_start": 26,
+      "page_end": 27,
+      "file": "blocks/roberts_majority/0007.md",
+      "word_count": 337,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0001",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "Block 1",
+      "page_start": 28,
+      "page_end": 29,
+      "file": "blocks/gorsuch_concurrence/0001.md",
+      "word_count": 388,
+      "doctrines_primary": [
+        "major_questions"
+      ],
+      "doctrines_secondary": [
+        "statutory_interpretation",
+        "taxing_power"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0002",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "I",
+      "page_start": 29,
+      "page_end": 30,
+      "file": "blocks/gorsuch_concurrence/0002.md",
+      "word_count": 147,
+      "doctrines_primary": [
+        "major_questions"
+      ],
+      "doctrines_secondary": [
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0003",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "A",
+      "page_start": 30,
+      "page_end": 35,
+      "file": "blocks/gorsuch_concurrence/0003.md",
+      "word_count": 1597,
+      "doctrines_primary": [
+        "major_questions",
+        "emergency_powers",
+        "statutory_interpretation"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs",
+        "separation_of_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0004",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "B",
+      "page_start": 35,
+      "page_end": 39,
+      "file": "blocks/gorsuch_concurrence/0004.md",
+      "word_count": 1571,
+      "doctrines_primary": [
+        "clear_statement",
+        "major_questions"
+      ],
+      "doctrines_secondary": [
+        "emergency_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0005",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "2",
+      "page_start": 39,
+      "page_end": 42,
+      "file": "blocks/gorsuch_concurrence/0005.md",
+      "word_count": 735,
+      "doctrines_primary": [
+        "major_questions"
+      ],
+      "doctrines_secondary": [
+        "clear_statement",
+        "nondelegation"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0006",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "C",
+      "page_start": 42,
+      "page_end": 44,
+      "file": "blocks/gorsuch_concurrence/0006.md",
+      "word_count": 803,
+      "doctrines_primary": [
+        "major_questions"
+      ],
+      "doctrines_secondary": [
+        "separation_of_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0007",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "II",
+      "page_start": 44,
+      "page_end": 45,
+      "file": "blocks/gorsuch_concurrence/0007.md",
+      "word_count": 252,
+      "doctrines_primary": [
+        "major_questions"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0008",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "A",
+      "page_start": 45,
+      "page_end": 49,
+      "file": "blocks/gorsuch_concurrence/0008.md",
+      "word_count": 1248,
+      "doctrines_primary": [
+        "major_questions",
+        "statutory_interpretation"
+      ],
+      "doctrines_secondary": [
+        "clear_statement"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0009",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "B",
+      "page_start": 49,
+      "page_end": 49,
+      "file": "blocks/gorsuch_concurrence/0009.md",
+      "word_count": 117,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "major_questions"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0010",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "down a straw man.\u201d Post, at 1 (concurring opinion). But it was JUSTICE",
+      "page_start": 49,
+      "page_end": 53,
+      "file": "blocks/gorsuch_concurrence/0010.md",
+      "word_count": 1212,
+      "doctrines_primary": [
+        "major_questions",
+        "clear_statement"
+      ],
+      "doctrines_secondary": [
+        "separation_of_powers",
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0011",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "III",
+      "page_start": 53,
+      "page_end": 54,
+      "file": "blocks/gorsuch_concurrence/0011.md",
+      "word_count": 306,
+      "doctrines_primary": [
+        "major_questions",
+        "clear_statement"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0012",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "A",
+      "page_start": 54,
+      "page_end": 57,
+      "file": "blocks/gorsuch_concurrence/0012.md",
+      "word_count": 1131,
+      "doctrines_primary": [
+        "major_questions"
+      ],
+      "doctrines_secondary": [
+        "clear_statement",
+        "emergency_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0013",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "B",
+      "page_start": 57,
+      "page_end": 63,
+      "file": "blocks/gorsuch_concurrence/0013.md",
+      "word_count": 1907,
+      "doctrines_primary": [
+        "major_questions",
+        "foreign_affairs",
+        "nondelegation"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0014",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "C",
+      "page_start": 63,
+      "page_end": 67,
+      "file": "blocks/gorsuch_concurrence/0014.md",
+      "word_count": 1348,
+      "doctrines_primary": [
+        "taxing_power",
+        "major_questions"
+      ],
+      "doctrines_secondary": [
+        "nondelegation",
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0015",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "IV",
+      "page_start": 67,
+      "page_end": 68,
+      "file": "blocks/gorsuch_concurrence/0015.md",
+      "word_count": 500,
+      "doctrines_primary": [
+        "major_questions",
+        "nondelegation"
+      ],
+      "doctrines_secondary": [
+        "separation_of_powers",
+        "congressional_delegation"
+      ]
+    },
+    {
+      "block_id": "24-1287_gorsuch_concurrence_0016",
+      "justice": "Gorsuch",
+      "opinion_type": "concurrence",
+      "title": "dissenting). But JUSTICE THOMAS would go much further.",
+      "page_start": 68,
+      "page_end": 73,
+      "file": "blocks/gorsuch_concurrence/0016.md",
+      "word_count": 1801,
+      "doctrines_primary": [
+        "nondelegation"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "24-1287_barrett_concurrence_0001",
+      "justice": "Barrett",
+      "opinion_type": "concurrence",
+      "title": "Block 1",
+      "page_start": 74,
+      "page_end": 77,
+      "file": "blocks/barrett_concurrence/0001.md",
+      "word_count": 1189,
+      "doctrines_primary": [
+        "major_questions",
+        "statutory_interpretation"
+      ],
+      "doctrines_secondary": [
+        "taxing_power",
+        "separation_of_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_kagan_concurrence_in_part_0001",
+      "justice": "Kagan",
+      "opinion_type": "concurrence_in_part",
+      "title": "Block 1",
+      "page_start": 78,
+      "page_end": 80,
+      "file": "blocks/kagan_concurrence_in_part/0001.md",
+      "word_count": 835,
+      "doctrines_primary": [
+        "major_questions"
+      ],
+      "doctrines_secondary": [
+        "clear_statement",
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_kagan_concurrence_in_part_0002",
+      "justice": "Kagan",
+      "opinion_type": "concurrence_in_part",
+      "title": "542 (2023) (KAGAN, J., dissenting). Contrary to JUSTICE GORSUCH\u2019s sug-",
+      "page_start": 80,
+      "page_end": 84,
+      "file": "blocks/kagan_concurrence_in_part/0002.md",
+      "word_count": 1397,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "taxing_power",
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_jackson_concurrence_in_part_0001",
+      "justice": "Jackson",
+      "opinion_type": "concurrence_in_part",
+      "title": "Block 1",
+      "page_start": 85,
+      "page_end": 89,
+      "file": "blocks/jackson_concurrence_in_part/0001.md",
+      "word_count": 1244,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "major_questions",
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_thomas_dissent_0001",
+      "justice": "Thomas",
+      "opinion_type": "dissent",
+      "title": "Block 1",
+      "page_start": 90,
+      "page_end": 92,
+      "file": "blocks/thomas_dissent/0001.md",
+      "word_count": 715,
+      "doctrines_primary": [
+        "nondelegation",
+        "separation_of_powers",
+        "foreign_affairs"
+      ],
+      "doctrines_secondary": [
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_thomas_dissent_0002",
+      "justice": "Thomas",
+      "opinion_type": "dissent",
+      "title": "I",
+      "page_start": 92,
+      "page_end": 93,
+      "file": "blocks/thomas_dissent/0002.md",
+      "word_count": 209,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "nondelegation"
+      ]
+    },
+    {
+      "block_id": "24-1287_thomas_dissent_0003",
+      "justice": "Thomas",
+      "opinion_type": "dissent",
+      "title": "A",
+      "page_start": 93,
+      "page_end": 94,
+      "file": "blocks/thomas_dissent/0003.md",
+      "word_count": 529,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "nondelegation",
+        "separation_of_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_thomas_dissent_0004",
+      "justice": "Thomas",
+      "opinion_type": "dissent",
+      "title": "B",
+      "page_start": 94,
+      "page_end": 98,
+      "file": "blocks/thomas_dissent/0004.md",
+      "word_count": 1131,
+      "doctrines_primary": [
+        "foreign_affairs",
+        "nondelegation"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "24-1287_thomas_dissent_0005",
+      "justice": "Thomas",
+      "opinion_type": "dissent",
+      "title": "II",
+      "page_start": 98,
+      "page_end": 100,
+      "file": "blocks/thomas_dissent/0005.md",
+      "word_count": 627,
+      "doctrines_primary": [
+        "foreign_affairs"
+      ],
+      "doctrines_secondary": [
+        "nondelegation"
+      ]
+    },
+    {
+      "block_id": "24-1287_thomas_dissent_0006",
+      "justice": "Thomas",
+      "opinion_type": "dissent",
+      "title": "2",
+      "page_start": 100,
+      "page_end": 102,
+      "file": "blocks/thomas_dissent/0006.md",
+      "word_count": 676,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "foreign_affairs",
+        "nondelegation"
+      ]
+    },
+    {
+      "block_id": "24-1287_thomas_dissent_0007",
+      "justice": "Thomas",
+      "opinion_type": "dissent",
+      "title": "B",
+      "page_start": 102,
+      "page_end": 104,
+      "file": "blocks/thomas_dissent/0007.md",
+      "word_count": 701,
+      "doctrines_primary": [
+        "foreign_affairs"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "24-1287_thomas_dissent_0008",
+      "justice": "Thomas",
+      "opinion_type": "dissent",
+      "title": "2",
+      "page_start": 104,
+      "page_end": 106,
+      "file": "blocks/thomas_dissent/0008.md",
+      "word_count": 684,
+      "doctrines_primary": [
+        "foreign_affairs"
+      ],
+      "doctrines_secondary": [
+        "nondelegation"
+      ]
+    },
+    {
+      "block_id": "24-1287_thomas_dissent_0009",
+      "justice": "Thomas",
+      "opinion_type": "dissent",
+      "title": "III",
+      "page_start": 106,
+      "page_end": 107,
+      "file": "blocks/thomas_dissent/0009.md",
+      "word_count": 411,
+      "doctrines_primary": [
+        "nondelegation",
+        "foreign_affairs"
+      ],
+      "doctrines_secondary": [
+        "statutory_interpretation",
+        "separation_of_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0001",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "Block 1",
+      "page_start": 108,
+      "page_end": 113,
+      "file": "blocks/kavanaugh_dissent/0001.md",
+      "word_count": 1581,
+      "doctrines_primary": [
+        "major_questions",
+        "statutory_interpretation",
+        "emergency_powers"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0002",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "I",
+      "page_start": 113,
+      "page_end": 116,
+      "file": "blocks/kavanaugh_dissent/0002.md",
+      "word_count": 853,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "separation_of_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0003",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "II",
+      "page_start": 116,
+      "page_end": 117,
+      "file": "blocks/kavanaugh_dissent/0003.md",
+      "word_count": 108,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0004",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "A",
+      "page_start": 117,
+      "page_end": 121,
+      "file": "blocks/kavanaugh_dissent/0004.md",
+      "word_count": 1265,
+      "doctrines_primary": [
+        "foreign_affairs",
+        "statutory_interpretation",
+        "taxing_power"
+      ],
+      "doctrines_secondary": [
+        "emergency_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0005",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "B",
+      "page_start": 121,
+      "page_end": 129,
+      "file": "blocks/kavanaugh_dissent/0005.md",
+      "word_count": 2741,
+      "doctrines_primary": [
+        "statutory_interpretation",
+        "emergency_powers"
+      ],
+      "doctrines_secondary": [
+        "taxing_power",
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0006",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "C",
+      "page_start": 129,
+      "page_end": 136,
+      "file": "blocks/kavanaugh_dissent/0006.md",
+      "word_count": 1870,
+      "doctrines_primary": [
+        "emergency_powers"
+      ],
+      "doctrines_secondary": [
+        "taxing_power",
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0007",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "D",
+      "page_start": 136,
+      "page_end": 138,
+      "file": "blocks/kavanaugh_dissent/0007.md",
+      "word_count": 736,
+      "doctrines_primary": [
+        "emergency_powers",
+        "statutory_interpretation"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0008",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "III",
+      "page_start": 138,
+      "page_end": 141,
+      "file": "blocks/kavanaugh_dissent/0008.md",
+      "word_count": 736,
+      "doctrines_primary": [
+        "major_questions",
+        "statutory_interpretation"
+      ],
+      "doctrines_secondary": [
+        "separation_of_powers",
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0009",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "A",
+      "page_start": 141,
+      "page_end": 145,
+      "file": "blocks/kavanaugh_dissent/0009.md",
+      "word_count": 1409,
+      "doctrines_primary": [
+        "major_questions"
+      ],
+      "doctrines_secondary": [
+        "statutory_interpretation",
+        "clear_statement"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0010",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "2",
+      "page_start": 145,
+      "page_end": 152,
+      "file": "blocks/kavanaugh_dissent/0010.md",
+      "word_count": 1994,
+      "doctrines_primary": [
+        "major_questions",
+        "emergency_powers"
+      ],
+      "doctrines_secondary": [
+        "clear_statement",
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0011",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "B",
+      "page_start": 152,
+      "page_end": 156,
+      "file": "blocks/kavanaugh_dissent/0011.md",
+      "word_count": 1340,
+      "doctrines_primary": [
+        "foreign_affairs",
+        "major_questions",
+        "nondelegation"
+      ],
+      "doctrines_secondary": [
+        "separation_of_powers",
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0012",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "2",
+      "page_start": 156,
+      "page_end": 160,
+      "file": "blocks/kavanaugh_dissent/0012.md",
+      "word_count": 977,
+      "doctrines_primary": [
+        "foreign_affairs",
+        "major_questions"
+      ],
+      "doctrines_secondary": [
+        "clear_statement",
+        "emergency_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0013",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "3",
+      "page_start": 160,
+      "page_end": 164,
+      "file": "blocks/kavanaugh_dissent/0013.md",
+      "word_count": 1397,
+      "doctrines_primary": [
+        "foreign_affairs",
+        "major_questions",
+        "clear_statement"
+      ],
+      "doctrines_secondary": [
+        "nondelegation",
+        "statutory_interpretation"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0014",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "IV",
+      "page_start": 164,
+      "page_end": 168,
+      "file": "blocks/kavanaugh_dissent/0014.md",
+      "word_count": 1273,
+      "doctrines_primary": [
+        "foreign_affairs",
+        "major_questions",
+        "nondelegation"
+      ],
+      "doctrines_secondary": [
+        "congressional_delegation",
+        "emergency_powers"
+      ]
+    },
+    {
+      "block_id": "24-1287_kavanaugh_dissent_0015",
+      "justice": "Kavanaugh",
+      "opinion_type": "dissent",
+      "title": "V",
+      "page_start": 168,
+      "page_end": 170,
+      "file": "blocks/kavanaugh_dissent/0015.md",
+      "word_count": 766,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "foreign_affairs",
+        "clear_statement"
+      ]
+    }
+  ]
+}
