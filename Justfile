@@ -83,9 +83,26 @@ decision-list:
 decision-clean:
     rm -rf .rag_index_decision
 
-# Full pipeline: extract → ingest
+# Query filtered by corpus (e.g. section122_global_tariff)
+decision-corpus q c:
+    {{venv}} {{drag}} query "{{q}}" -c {{c}}
+
+# Query filtered by doc type (statute|proclamation|fact_sheet)
+decision-doctype q dt:
+    {{venv}} {{drag}} query "{{q}}" --doc-type {{dt}}
+
+# Extract Section 122 source documents into tagged blocks
+extract-section122:
+    {{venv}} tools/bin/extract-section122
+
+# Full pipeline: extract → ingest (Learning Resources)
 decision-pipeline:
     {{venv}} tools/bin/extract-decision
+    {{venv}} {{drag}} ingest
+
+# Full pipeline: extract Section 122 → ingest
+section122-pipeline:
+    {{venv}} tools/bin/extract-section122
     {{venv}} {{drag}} ingest
 
 # Setup with pdfplumber

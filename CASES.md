@@ -252,7 +252,19 @@ The result is not faster answers, but trustworthy ones.
 
 ---
 
+## Cross-Corpus Extension: Section 122 Global Import Surcharge
+
+Following the Supreme Court's decision in *Learning Resources*, the President immediately invoked Section 122 of the Trade Act of 1974 (19 U.S.C. § 2132) to impose a 10% global import surcharge, announced to increase to 15%.
+
+The corpus has been extended with 21 blocks from three primary source documents:
+
+- **Statute**: 19 U.S.C. § 2132 (9 blocks, segmented by subsection)
+- **Presidential Proclamation** (February 20, 2026): Balance-of-payments findings, operative clauses, exemptions, severability (8 blocks)
+- **White House Fact Sheet** (February 20, 2026): Policy summary, economic context, trade policy direction (4 blocks)
+
+This extension enables cross-corpus analysis: querying across both the judicial decision and the executive response. The ADK pipeline can now draw on Section 122's explicit statutory delegation language when evaluating the *Learning Resources* majority's holding that Congress delegates tariff authority "clearly and with careful constraints."
+
 ## Status
 
-This repository documents a working analytical system and a completed case study.
-Future work would involve extending the corpus across multiple decisions and testing cross-case doctrinal drift detection.
+This repository documents a working multi-corpus analytical system with a completed case study and cross-corpus extension.
+The Section 122 corpus demonstrates the system's ability to ingest non-judicial primary sources (statutes, executive actions) alongside court decisions for comparative institutional analysis.

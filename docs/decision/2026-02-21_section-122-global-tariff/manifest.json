@@ -1,0 +1,352 @@
+{
+  "corpus": "section122_global_tariff",
+  "title": "Section 122 Global Import Surcharge",
+  "date": "2026-02-21",
+  "description": "Presidential invocation of 19 U.S.C. \u00a7 2132 (Section 122 of the Trade Act of 1974) to impose a 10% global import surcharge, effective 2026-02-24",
+  "sources": [
+    {
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "19 U.S.C. \u00a7 2132 \u2014 Balance-of-payments authority",
+      "source_url": "https://www.law.cornell.edu/uscode/text/19/2132",
+      "retrieved": "2026-02-22T00:02:18.419120+00:00",
+      "hash": "53257b9a2d3df694",
+      "notes": "Fetched from U.S. Congress"
+    },
+    {
+      "doc_id": "section122_proclamation_20260220",
+      "doc_type": "proclamation",
+      "title": "Imposing a Temporary Import Surcharge to Address Fundamental International Payments Problems",
+      "source_url": "https://www.whitehouse.gov/presidential-actions/2026/02/imposing-a-temporary-import-surcharge-to-address-fundamental-international-payments-problems/",
+      "retrieved": "2026-02-22T00:02:18.419120+00:00",
+      "hash": "9664917c066c8e9f",
+      "notes": "Fetched from The White House"
+    },
+    {
+      "doc_id": "section122_fact_sheet_20260221",
+      "doc_type": "fact_sheet",
+      "title": "Fact Sheet: President Trump Imposes a Temporary Import Duty",
+      "source_url": "https://www.whitehouse.gov/fact-sheets/2026/02/fact-sheet-president-donald-j-trump-imposes-a-temporary-import-duty-to-address-fundamental-international-payment-problems/",
+      "retrieved": "2026-02-22T00:02:18.419120+00:00",
+      "hash": "2ee9a10dbf94cff9",
+      "notes": "Fetched from The White House"
+    }
+  ],
+  "pending_sources": [
+    {
+      "doc_id": "section122_federal_register",
+      "doc_type": "federal_register_notice",
+      "title": "Federal Register Notice \u2014 Section 122 Import Surcharge",
+      "date": null,
+      "source_name": "Federal Register",
+      "source_url": null,
+      "actor": "Executive Branch",
+      "status": "not_yet_published",
+      "notes": "Federal Register notice for proclamation not yet published as of 2026-02-21"
+    },
+    {
+      "doc_id": "section122_cbp_guidance",
+      "doc_type": "agency_guidance",
+      "title": "CBP Implementation Guidance \u2014 Section 122 Import Surcharge",
+      "date": null,
+      "source_name": "U.S. Customs and Border Protection",
+      "source_url": null,
+      "actor": "CBP",
+      "status": "not_yet_published",
+      "notes": "CBP implementation guidance not yet released as of 2026-02-21"
+    }
+  ],
+  "documents": [
+    {
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "19 U.S.C. \u00a7 2132 \u2014 Balance-of-payments authority",
+      "date": "1975-01-03",
+      "actor": "Congress",
+      "extracted_file": "extracted/statute_19usc2132.md",
+      "block_count": 9,
+      "block_dir": "blocks/statute"
+    },
+    {
+      "doc_id": "section122_proclamation_20260220",
+      "doc_type": "proclamation",
+      "title": "Imposing a Temporary Import Surcharge to Address Fundamental International Payments Problems",
+      "date": "2026-02-20",
+      "actor": "President",
+      "extracted_file": "extracted/proclamation_20260220.md",
+      "block_count": 8,
+      "block_dir": "blocks/proclamation"
+    },
+    {
+      "doc_id": "section122_fact_sheet_20260221",
+      "doc_type": "fact_sheet",
+      "title": "Fact Sheet: President Trump Imposes a Temporary Import Duty",
+      "date": "2026-02-20",
+      "actor": "President",
+      "extracted_file": "extracted/fact_sheet_20260221.md",
+      "block_count": 4,
+      "block_dir": "blocks/fact_sheet"
+    }
+  ],
+  "blocks": [
+    {
+      "block_id": "19750103_section122_global_tariff_statute_0001",
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "Section 122 \u2014 Title and authority",
+      "file": "blocks/statute/0001.md",
+      "word_count": 21,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "trade_policy"
+      ]
+    },
+    {
+      "block_id": "19750103_section122_global_tariff_statute_0002",
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "Section 122(a) \u2014 Presidential proclamations of temporary import surcharges and temporary limitati",
+      "file": "blocks/statute/0002.md",
+      "word_count": 248,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "19750103_section122_global_tariff_statute_0003",
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "Section 122(b) \u2014 Import restrictions not imposed when contrary to national interest of United Sta",
+      "file": "blocks/statute/0003.md",
+      "word_count": 83,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "trade_policy"
+      ]
+    },
+    {
+      "block_id": "19750103_section122_global_tariff_statute_0004",
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "Section 122(c) \u2014 Presidential proclamations liberalizing imports",
+      "file": "blocks/statute/0004.md",
+      "word_count": 212,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "19750103_section122_global_tariff_statute_0005",
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "Section 122(d) \u2014 Nondiscriminatory treatment of import restricting actions",
+      "file": "blocks/statute/0005.md",
+      "word_count": 223,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "19750103_section122_global_tariff_statute_0006",
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "Section 122(e) \u2014 Broad and uniform application of import restricting actions",
+      "file": "blocks/statute/0006.md",
+      "word_count": 168,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "19750103_section122_global_tariff_statute_0007",
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "Section 122(f) \u2014 Quantitative limitations",
+      "file": "blocks/statute/0007.md",
+      "word_count": 109,
+      "doctrines_primary": [],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "19750103_section122_global_tariff_statute_0008",
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "Section 122(g) \u2014 Suspension, modification, or termination of proclamations",
+      "file": "blocks/statute/0008.md",
+      "word_count": 50,
+      "doctrines_primary": [],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "19750103_section122_global_tariff_statute_0009",
+      "doc_id": "19usc2132_statute",
+      "doc_type": "statute",
+      "title": "Section 122(h) \u2014 Termination of tariff concessions",
+      "file": "blocks/statute/0009.md",
+      "word_count": 28,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "trade_policy"
+      ]
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_proclamation_0001",
+      "doc_id": "section122_proclamation_20260220",
+      "doc_type": "proclamation",
+      "title": "Proclamation \u2014 Preamble and statutory authority",
+      "file": "blocks/proclamation/0001.md",
+      "word_count": 197,
+      "doctrines_primary": [
+        "trade_policy",
+        "foreign_affairs"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_proclamation_0002",
+      "doc_id": "section122_proclamation_20260220",
+      "doc_type": "proclamation",
+      "title": "Proclamation \u2014 Balance-of-payments findings (trade deficit)",
+      "file": "blocks/proclamation/0002.md",
+      "word_count": 468,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_proclamation_0003",
+      "doc_id": "section122_proclamation_20260220",
+      "doc_type": "proclamation",
+      "title": "Proclamation \u2014 Balance-of-payments findings (investment position)",
+      "file": "blocks/proclamation/0003.md",
+      "word_count": 503,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_proclamation_0004",
+      "doc_id": "section122_proclamation_20260220",
+      "doc_type": "proclamation",
+      "title": "Proclamation \u2014 Presidential finding and surcharge imposition",
+      "file": "blocks/proclamation/0004.md",
+      "word_count": 130,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_proclamation_0005",
+      "doc_id": "section122_proclamation_20260220",
+      "doc_type": "proclamation",
+      "title": "Proclamation \u2014 Product exemptions (a)-(m)",
+      "file": "blocks/proclamation/0005.md",
+      "word_count": 275,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "trade_policy"
+      ]
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_proclamation_0006",
+      "doc_id": "section122_proclamation_20260220",
+      "doc_type": "proclamation",
+      "title": "Proclamation \u2014 Exemption justification and consistency findings",
+      "file": "blocks/proclamation/0006.md",
+      "word_count": 365,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_proclamation_0007",
+      "doc_id": "section122_proclamation_20260220",
+      "doc_type": "proclamation",
+      "title": "Proclamation \u2014 Authority citations (Section 122, Section 604)",
+      "file": "blocks/proclamation/0007.md",
+      "word_count": 99,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_proclamation_0008",
+      "doc_id": "section122_proclamation_20260220",
+      "doc_type": "proclamation",
+      "title": "Proclamation \u2014 Operative clauses",
+      "file": "blocks/proclamation/0008.md",
+      "word_count": 48,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "trade_policy"
+      ]
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_fact_sheet_0001",
+      "doc_id": "section122_fact_sheet_20260221",
+      "doc_type": "fact_sheet",
+      "title": "Fact Sheet \u2014 Title and date",
+      "file": "blocks/fact_sheet/0001.md",
+      "word_count": 24,
+      "doctrines_primary": [],
+      "doctrines_secondary": [
+        "trade_policy"
+      ]
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_fact_sheet_0002",
+      "doc_id": "section122_fact_sheet_20260221",
+      "doc_type": "fact_sheet",
+      "title": "Fact Sheet \u2014 Protecting The U.S. Economy And National Interests",
+      "file": "blocks/fact_sheet/0002.md",
+      "word_count": 444,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": []
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_fact_sheet_0003",
+      "doc_id": "section122_fact_sheet_20260221",
+      "doc_type": "fact_sheet",
+      "title": "Fact Sheet \u2014 Addressing Fundamental International Payment",
+      "file": "blocks/fact_sheet/0003.md",
+      "word_count": 418,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    },
+    {
+      "block_id": "20260220_section122_global_tariff_fact_sheet_0004",
+      "doc_id": "section122_fact_sheet_20260221",
+      "doc_type": "fact_sheet",
+      "title": "Fact Sheet \u2014 Continuing To Utilize Tariffs To Protect U.S.",
+      "file": "blocks/fact_sheet/0004.md",
+      "word_count": 266,
+      "doctrines_primary": [
+        "trade_policy"
+      ],
+      "doctrines_secondary": [
+        "foreign_affairs"
+      ]
+    }
+  ]
+}

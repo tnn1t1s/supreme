@@ -2,7 +2,11 @@
 
 ## Project
 
-Institutional analysis toolkit for Supreme Court decisions. Primary case: *Learning Resources, Inc. v. Trump* (24-1287, 25-250), decided 2026-02-20.
+Institutional analysis toolkit for Supreme Court decisions. Multi-corpus RAG with cross-document analysis.
+
+Cases:
+- *Learning Resources, Inc. v. Trump* (24-1287, 25-250), decided 2026-02-20
+- Section 122 Global Import Surcharge (19 U.S.C. § 2132), proclaimed 2026-02-20
 
 ## Stack
 
@@ -16,14 +20,15 @@ Runner: just (Justfile)
 ## Key Paths
 
 ```yaml
-Corpus: docs/decision/2026-02-20_learning-resources-v-trump_24-1287/
+Corpus 1: docs/decision/2026-02-20_learning-resources-v-trump_24-1287/
+Corpus 2: docs/decision/2026-02-21_section-122-global-tariff/
 Manifest: docs/decision/.../manifest.json
-Blocks: docs/decision/.../blocks/{opinion}/{NNNN}.md
+Blocks: docs/decision/.../blocks/{opinion|doc_type}/{NNNN}.md
 Vector Index: .rag_index_decision/
 ADK Package: decision_rag_adk/
 ADK Prompts: decision_rag_adk/prompts/
 ADK Tools: decision_rag_adk/tools/
-CLI Tools: tools/bin/{decision-rag,decision-adk,extract-decision}
+CLI Tools: tools/bin/{decision-rag,decision-adk,extract-decision,extract-section122}
 API Key: decision_rag_adk/.env (GOOGLE_API_KEY)
 ```
 
@@ -61,11 +66,14 @@ Retrieval:
   just decision-query "q"     # Search all opinions
   just decision-justice "q" J # Filter by justice
   just decision-doctrine "q" d # Filter by doctrine
+  just decision-corpus "q" c  # Filter by corpus (e.g. section122_global_tariff)
+  just decision-doctype "q" dt # Filter by doc type (statute|proclamation|fact_sheet)
   just decision-json "q"     # JSON output
   just decision-list          # List indexed decisions
 
 Ingestion:
-  just decision-pipeline      # Extract PDF + build index
+  just decision-pipeline      # Extract PDF + build index (Learning Resources)
+  just section122-pipeline    # Extract Section 122 docs + build index
   just decision-ingest        # Rebuild index only
   just decision-clean         # Delete vector index
 ```
@@ -74,9 +82,11 @@ Ingestion:
 
 ```yaml
 Frontmatter: YAML between --- delimiters
-Fields: justice, opinion_type, title, case, docket, date, source, page_start, page_end, block_id, doctrines_primary, doctrines_secondary
+Fields (decision): justice, opinion_type, title, case, docket, date, source, page_start, page_end, block_id, doctrines_primary, doctrines_secondary
+Fields (section122): corpus, doc_type, title, date, source_name, source_url, actor, authority, action, scope, judicial_status, related_cases, block_id, doctrines_primary, doctrines_secondary
 Doctrines: Comma-separated strings | "none" for empty
-block_id format: {docket}_{justice}_{opinion_type}_{NNNN}
+block_id format (decision): {docket}_{justice}_{opinion_type}_{NNNN}
+block_id format (section122): {date}_{corpus}_{doc_type}_{NNNN}
 ```
 
 ## Prompt Tuning

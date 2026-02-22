@@ -1,17 +1,26 @@
 # supremes-tariif
 
-Institutional analysis toolkit for Supreme Court decisions. Built around the *Learning Resources, Inc. v. Trump* (24-1287) tariff case.
+Institutional analysis toolkit for Supreme Court decisions and related primary sources. Multi-corpus RAG with cross-document analysis.
+
+## Corpora
+
+| Corpus | Blocks | Source |
+|--------|--------|--------|
+| *Learning Resources, Inc. v. Trump* (24-1287) | 53 | Slip opinion PDF (8 opinions) |
+| Section 122 Global Import Surcharge | 21 | Statute, proclamation, fact sheet |
 
 ## Tools
 
 ### decision-rag (retrieval)
 
-Vector search over 53 segmented opinion blocks with metadata filtering.
+Vector search over 74 segmented blocks with metadata filtering. Supports cross-corpus queries.
 
 ```bash
-just decision-query "taxing power"              # search all opinions
+just decision-query "taxing power"              # search all blocks
 just decision-justice "IEEPA" Roberts            # filter by justice
 just decision-doctrine "delegation" nondelegation # filter by doctrine
+just decision-corpus "Section 122" section122_global_tariff  # filter by corpus
+just decision-doctype "surcharge" proclamation   # filter by doc type
 just decision-json "regulate importation"        # JSON output
 just decision-list                               # list indexed decisions
 ```
@@ -48,7 +57,7 @@ Every agent enforces:
 6. **No motive inference** -- text only, no speculation
 7. **Marks skepticism** -- flag uncertainty in narrowest-ground analysis
 
-#### Corpus
+#### Corpus: Learning Resources v. Trump
 
 53 blocks across 8 opinions from the slip opinion PDF:
 
@@ -63,12 +72,24 @@ Every agent enforces:
 | Thomas | dissent | 9 | 90-107 |
 | Kavanaugh | dissent | 15 | 108-170 |
 
-### extract-decision (ingestion)
+#### Corpus: Section 122 Global Import Surcharge
 
-Converts slip opinion PDF into segmented markdown blocks with YAML frontmatter and automated doctrine tagging.
+21 blocks across 3 primary source documents:
+
+| Document | Type | Blocks |
+|----------|------|--------|
+| 19 U.S.C. § 2132 | statute | 9 |
+| Presidential Proclamation (2026-02-20) | proclamation | 8 |
+| White House Fact Sheet (2026-02-20) | fact_sheet | 4 |
+
+Pending sources: Federal Register notice, CBP implementation guidance.
+
+### Ingestion tools
 
 ```bash
-just decision-pipeline         # extract + ingest
+just decision-pipeline         # extract Learning Resources + ingest
+just section122-pipeline       # extract Section 122 + ingest
+just extract-section122        # extract Section 122 blocks only
 ```
 
 ## Setup
@@ -90,7 +111,8 @@ GOOGLE_API_KEY=your-key-here
 tools/bin/
   decision-rag          # RAG retriever CLI (LlamaIndex + BGE embeddings)
   decision-adk          # ADK pipeline launcher
-  extract-decision      # PDF -> markdown blocks
+  extract-decision      # PDF -> markdown blocks (Learning Resources)
+  extract-section122    # HTML -> markdown blocks (Section 122 corpus)
 
 decision_rag_adk/       # Google ADK agent package
   __init__.py           # root_agent (SequentialAgent)

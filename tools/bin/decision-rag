@@ -12,11 +12,13 @@ Usage:
   decision-rag query "IEEPA" -j Gorsuch -j Barrett       # Multiple justice filter
   decision-rag query "IEEPA" -d nondelegation            # Filter by doctrine tag
   decision-rag query "delegation" -d major_questions -j Thomas  # Combined filters
-  decision-rag list                                      # List indexed opinions
+  decision-rag query "Section 122" -c section122_global_tariff  # Filter by corpus
+  decision-rag query "tariff" --doc-type proclamation    # Filter by doc type
+  decision-rag list                                      # List indexed decisions
 
 Doctrine tags: major_questions, clear_statement, nondelegation, separation_of_powers,
                taxing_power, statutory_interpretation, foreign_affairs, emergency_powers,
-               congressional_delegation
+               congressional_delegation, trade_policy
 """
 
 import argparse
@@ -86,12 +88,24 @@ def build_index():
     index.storage_context.persist(persist_dir=str(INDEX_DIR))
     justices = set()
     types = set()
+    corpora = set()
+    doc_types = set()
     for d in docs:
         justices.add(d.metadata.get("justice", ""))
         types.add(d.metadata.get("opinion_type", ""))
+        if d.metadata.get("corpus"):
+            corpora.add(d.metadata["corpus"])
+        if d.metadata.get("doc_type"):
+            doc_types.add(d.metadata["doc_type"])
     print(f"Indexed {len(docs)} blocks")
-    print(f"  Justices: {', '.join(sorted(justices))}")
-    print(f"  Types: {', '.join(sorted(types))}")
+    if justices - {""}:
+        print(f"  Justices: {', '.join(sorted(justices - {''}))}")
+    if types - {""}:
+        print(f"  Types: {', '.join(sorted(types - {''}))}")
+    if corpora:
+        print(f"  Corpora: {', '.join(sorted(corpora))}")
+    if doc_types:
+        print(f"  Doc types: {', '.join(sorted(doc_types))}")
     print(f"  Index: {INDEX_DIR}")
     return index
 
@@ -106,7 +120,7 @@ def load_index():
     return load_index_from_storage(storage_context)
 
 
-def retrieve_filtered(index, query, justices=None, opinion_types=None, doctrines=None, top_k=10):
+def retrieve_filtered(index, query, justices=None, opinion_types=None, doctrines=None, corpus=None, doc_types=None, top_k=10):
     from llama_index.core.vector_stores import MetadataFilters, MetadataFilter, FilterOperator, FilterCondition
 
     filters_list = []
@@ -119,6 +133,12 @@ def retrieve_filtered(index, query, justices=None, opinion_types=None, doctrines
     if doctrines:
         for d in doctrines:
             filters_list.append(MetadataFilter(key="doctrines_primary", value=d, operator=FilterOperator.CONTAINS))
+    if corpus:
+        for c in corpus:
+            filters_list.append(MetadataFilter(key="corpus", value=c, operator=FilterOperator.EQ))
+    if doc_types:
+        for dt in doc_types:
+            filters_list.append(MetadataFilter(key="doc_type", value=dt, operator=FilterOperator.EQ))
 
     if filters_list:
         metadata_filters = MetadataFilters(filters=filters_list, condition=FilterCondition.OR if len(filters_list) > 1 else FilterCondition.AND)
@@ -145,18 +165,22 @@ def format_node(i, node):
     m = node.metadata
     primary = m.get("doctrines_primary", "none")
     secondary = m.get("doctrines_secondary", "none")
-    lines = [
-        f"--- NODE {i+1} | score={node.score:.4f} ---",
-        f"  justice: {m.get('justice', '?')}",
-        f"  opinion_type: {m.get('opinion_type', '?')}",
+    lines = [f"--- NODE {i+1} | score={node.score:.4f} ---"]
+    if m.get("corpus"):
+        lines.append(f"  corpus: {m['corpus']}")
+        lines.append(f"  doc_type: {m.get('doc_type', '?')}")
+        lines.append(f"  actor: {m.get('actor', '?')}")
+    else:
+        lines.append(f"  justice: {m.get('justice', '?')}")
+        lines.append(f"  opinion_type: {m.get('opinion_type', '?')}")
+    lines.extend([
         f"  title: {m.get('title', '?')}",
         f"  block_id: {m.get('block_id', '?')}",
-        f"  pages: {m.get('page_start', '?')}-{m.get('page_end', '?')}",
         f"  doctrines: [{primary}]" + (f" + [{secondary}]" if secondary != "none" else ""),
         "",
         node.text[:1500],
         "",
-    ]
+    ])
     return "\n".join(lines)
 
 
@@ -171,6 +195,8 @@ def cmd_query(args):
         justices=args.justice,
         opinion_types=args.type,
         doctrines=args.doctrine,
+        corpus=args.corpus,
+        doc_types=args.doc_type,
         top_k=args.top_k,
     )
     if args.json:
@@ -190,6 +216,10 @@ def cmd_query(args):
             print(f"  Filter type: {', '.join(args.type)}")
         if args.doctrine:
             print(f"  Filter doctrine: {', '.join(args.doctrine)}")
+        if args.corpus:
+            print(f"  Filter corpus: {', '.join(args.corpus)}")
+        if args.doc_type:
+            print(f"  Filter doc_type: {', '.join(args.doc_type)}")
         print()
         for i, node in enumerate(nodes):
             print(format_node(i, node))
@@ -198,19 +228,32 @@ def cmd_query(args):
 
 
 def cmd_list(args):
-    manifest_files = list(DECISION_DIR.glob("*/manifest.json"))
+    manifest_files = sorted(DECISION_DIR.glob("*/manifest.json"))
     if not manifest_files:
         print("No decisions indexed")
         return
     for mf in manifest_files:
         manifest = json.loads(mf.read_text())
-        print(f"Case: {manifest['case']}")
-        print(f"Docket: {', '.join(manifest['docket'])}")
-        print(f"Decided: {manifest['decided']}")
-        print(f"Opinions:")
-        for op in manifest["opinions"]:
-            print(f"  {op['justice']:12s} {op['type']:25s} {op['block_count']:3d} blocks  pp.{op['page_range'][0]}-{op['page_range'][1]}")
+        if "case" in manifest:
+            print(f"Case: {manifest['case']}")
+            print(f"Docket: {', '.join(manifest['docket'])}")
+            print(f"Decided: {manifest['decided']}")
+            print(f"Opinions:")
+            for op in manifest["opinions"]:
+                print(f"  {op['justice']:12s} {op['type']:25s} {op['block_count']:3d} blocks  pp.{op['page_range'][0]}-{op['page_range'][1]}")
+        elif "corpus" in manifest:
+            print(f"Corpus: {manifest['corpus']}")
+            print(f"Title: {manifest['title']}")
+            print(f"Date: {manifest['date']}")
+            print(f"Documents:")
+            for doc in manifest.get("documents", []):
+                print(f"  {doc['doc_type']:20s} {doc['title'][:50]:50s} {doc['block_count']:3d} blocks")
+            if manifest.get("pending_sources"):
+                print(f"Pending:")
+                for ps in manifest["pending_sources"]:
+                    print(f"  {ps['doc_type']:20s} {ps['status']}")
         print(f"Total blocks: {len(manifest.get('blocks', []))}")
+        print()
 
 
 def main():
@@ -227,7 +270,11 @@ def main():
     p_query.add_argument("-d", "--doctrine", action="append",
                          help="Filter by doctrine tag (repeatable). Values: major_questions, clear_statement, "
                               "nondelegation, separation_of_powers, taxing_power, statutory_interpretation, "
-                              "foreign_affairs, emergency_powers, congressional_delegation")
+                              "foreign_affairs, emergency_powers, congressional_delegation, trade_policy")
+    p_query.add_argument("-c", "--corpus", action="append",
+                         help="Filter by corpus (repeatable). E.g. section122_global_tariff")
+    p_query.add_argument("--doc-type", action="append",
+                         help="Filter by doc_type (repeatable). E.g. statute, proclamation, fact_sheet")
     p_query.add_argument("-k", "--top-k", type=int, default=10)
     p_query.add_argument("--json", action="store_true")
     p_query.set_defaults(func=cmd_query)

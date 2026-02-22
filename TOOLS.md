@@ -1,6 +1,6 @@
 # TOOLS.md — CLI Tool Reference
 
-This project includes five CLI tools in `tools/bin/`. All are invoked through the project's `.venv` Python or directly via `just` recipes. None require installation beyond the project's virtual environment.
+This project includes six CLI tools in `tools/bin/`. All are invoked through the project's `.venv` Python or directly via `just` recipes. None require installation beyond the project's virtual environment.
 
 ---
 
@@ -74,11 +74,60 @@ just decision-pipeline         # extract + ingest in one step
 
 ---
 
+## extract-section122
+
+**Path:** `tools/bin/extract-section122`
+**Language:** Python 3 (requires `beautifulsoup4`)
+**Purpose:** Segments Section 122 primary source documents (statute, proclamation, fact sheet) into tagged blocks for RAG ingestion.
+
+### What It Does
+
+1. Reads extracted markdown files from `docs/decision/2026-02-21_section-122-global-tariff/extracted/`.
+2. Segments each document by structural unit: subsections for the statute, policy sections for the proclamation, heading groups for the fact sheet.
+3. Classifies doctrines using the same regex patterns as `extract-decision`, plus a `trade_policy` category.
+4. Writes blocks with extended YAML frontmatter including `corpus`, `doc_type`, `actor`, `authority`, `action`, `scope`, `judicial_status`, and `related_cases`.
+5. Generates `manifest.json` with source hashes, retrieval timestamps, and entries for pending sources (Federal Register notice, CBP guidance).
+
+### Output Structure
+
+```
+docs/decision/2026-02-21_section-122-global-tariff/
+├── source/*.html                    # Raw HTML from Cornell Law / whitehouse.gov
+├── extracted/*.md                   # Cleaned markdown (3 files)
+├── blocks/
+│   ├── statute/{0001..0009}.md      # 19 U.S.C. § 2132 by subsection
+│   ├── proclamation/{0001..0008}.md # Proclamation by structural section
+│   └── fact_sheet/{0001..0004}.md   # Fact sheet by heading group
+└── manifest.json                    # Corpus index with pending sources
+```
+
+### Extended Block Frontmatter
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `corpus` | Corpus identifier | `section122_global_tariff` |
+| `doc_type` | Document type | `statute`, `proclamation`, `fact_sheet` |
+| `actor` | Authoring entity | `Congress`, `President` |
+| `authority.statute_name` | Governing statute | `Trade Act of 1974` |
+| `action.rate_percent` | Tariff rate imposed | `10` |
+| `action.cap_percent` | Statutory maximum | `15` |
+| `action.duration_days` | Statutory time limit | `150` |
+| `judicial_status` | Judicial review status | `not_yet_reviewed` |
+
+### Usage
+
+```bash
+just extract-section122            # or: .venv/bin/python tools/bin/extract-section122
+just section122-pipeline           # extract + ingest in one step
+```
+
+---
+
 ## decision-rag
 
 **Path:** `tools/bin/decision-rag`
 **Language:** Python 3 (requires `llama-index`, `llama-index-embeddings-huggingface`)
-**Purpose:** Vector search over the structured block corpus with metadata filtering by justice, opinion type, and doctrine.
+**Purpose:** Vector search over the structured block corpus with metadata filtering by justice, opinion type, doctrine, corpus, and document type.
 
 ### What It Does
 
@@ -95,6 +144,8 @@ Filters are passed to LlamaIndex's `MetadataFilters` and applied at retrieval ti
 | `-j` / `--justice` | Justice name (repeatable) | `-j Roberts -j Gorsuch` |
 | `-t` / `--type` | Opinion type (repeatable) | `-t dissent` |
 | `-d` / `--doctrine` | Doctrine tag (repeatable) | `-d major_questions -d nondelegation` |
+| `-c` / `--corpus` | Corpus identifier (repeatable) | `-c section122_global_tariff` |
+| `--doc-type` | Document type (repeatable) | `--doc-type statute --doc-type proclamation` |
 | `-k` / `--top-k` | Number of results (default 10) | `-k 20` |
 | `--json` | JSON output | |
 
@@ -110,6 +161,8 @@ Filters are passed to LlamaIndex's `MetadataFilters` and applied at retrieval ti
 just decision-query "taxing power"              # All opinions
 just decision-justice "IEEPA" Roberts            # Filter by justice
 just decision-doctrine "delegation" nondelegation # Filter by doctrine
+just decision-corpus "Section 122" section122_global_tariff  # Filter by corpus
+just decision-doctype "surcharge" proclamation   # Filter by doc type
 just decision-json "emergency powers"            # JSON output
 just decision-list                               # List indexed decisions
 just decision-ingest                             # Rebuild index
@@ -306,11 +359,15 @@ All tools are accessible via `just` recipes. The full recipe list:
 | `just decision-query Q` | Query all opinions |
 | `just decision-justice Q J` | Filter by justice |
 | `just decision-doctrine Q D` | Filter by doctrine |
+| `just decision-corpus Q C` | Filter by corpus |
+| `just decision-doctype Q DT` | Filter by doc type |
 | `just decision-json Q` | JSON output |
 | `just decision-list` | List indexed decisions |
 | `just decision-ingest` | Rebuild index |
 | `just decision-clean` | Delete index |
-| `just decision-pipeline` | Extract PDF + rebuild index |
+| `just decision-pipeline` | Extract PDF + rebuild index (Learning Resources) |
+| `just extract-section122` | Extract Section 122 blocks |
+| `just section122-pipeline` | Extract Section 122 + rebuild index |
 
 ### Decision ADK
 | Recipe | Command |
@@ -345,6 +402,7 @@ All tools are accessible via `just` recipes. The full recipe list:
 | Tool | Python Packages | System |
 |------|----------------|--------|
 | `extract-decision` | `pdfplumber` | — |
+| `extract-section122` | `beautifulsoup4` | — |
 | `decision-rag` | `llama-index`, `llama-index-embeddings-huggingface` | — |
 | `decision-adk` | `google-adk` (v1.25.1) | `adk` CLI in venv |
 | `adk-sessions` | (stdlib only) | — |

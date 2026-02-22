@@ -1,0 +1,591 @@
+#!/usr/bin/env python3
+"""extract-section122: Segment Section 122 source documents into tagged blocks for RAG ingestion.
+
+Reads extracted markdown files for the statute, proclamation, and fact sheet,
+segments into legally meaningful blocks, writes markdown files with YAML frontmatter,
+and generates a manifest.json.
+"""
+
+import hashlib
+import json
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DECISION_DIR = PROJECT_ROOT / "docs" / "decision" / "2026-02-21_section-122-global-tariff"
+EXTRACTED_DIR = DECISION_DIR / "extracted"
+BLOCKS_DIR = DECISION_DIR / "blocks"
+
+CORPUS = "section122_global_tariff"
+
+SOURCES = [
+    {
+        "doc_id": "19usc2132_statute",
+        "doc_type": "statute",
+        "title": "19 U.S.C. § 2132 — Balance-of-payments authority",
+        "date": "1975-01-03",
+        "source_name": "U.S. Congress",
+        "source_url": "https://www.law.cornell.edu/uscode/text/19/2132",
+        "actor": "Congress",
+        "extracted_file": "statute_19usc2132.md",
+        "block_subdir": "statute",
+    },
+    {
+        "doc_id": "section122_proclamation_20260220",
+        "doc_type": "proclamation",
+        "title": "Imposing a Temporary Import Surcharge to Address Fundamental International Payments Problems",
+        "date": "2026-02-20",
+        "source_name": "The White House",
+        "source_url": "https://www.whitehouse.gov/presidential-actions/2026/02/imposing-a-temporary-import-surcharge-to-address-fundamental-international-payments-problems/",
+        "actor": "President",
+        "extracted_file": "proclamation_20260220.md",
+        "block_subdir": "proclamation",
+    },
+    {
+        "doc_id": "section122_fact_sheet_20260221",
+        "doc_type": "fact_sheet",
+        "title": "Fact Sheet: President Trump Imposes a Temporary Import Duty",
+        "date": "2026-02-20",
+        "source_name": "The White House",
+        "source_url": "https://www.whitehouse.gov/fact-sheets/2026/02/fact-sheet-president-donald-j-trump-imposes-a-temporary-import-duty-to-address-fundamental-international-payment-problems/",
+        "actor": "President",
+        "extracted_file": "fact_sheet_20260221.md",
+        "block_subdir": "fact_sheet",
+    },
+]
+
+PENDING_SOURCES = [
+    {
+        "doc_id": "section122_federal_register",
+        "doc_type": "federal_register_notice",
+        "title": "Federal Register Notice — Section 122 Import Surcharge",
+        "date": None,
+        "source_name": "Federal Register",
+        "source_url": None,
+        "actor": "Executive Branch",
+        "status": "not_yet_published",
+        "notes": "Federal Register notice for proclamation not yet published as of 2026-02-21",
+    },
+    {
+        "doc_id": "section122_cbp_guidance",
+        "doc_type": "agency_guidance",
+        "title": "CBP Implementation Guidance — Section 122 Import Surcharge",
+        "date": None,
+        "source_name": "U.S. Customs and Border Protection",
+        "source_url": None,
+        "actor": "CBP",
+        "status": "not_yet_published",
+        "notes": "CBP implementation guidance not yet released as of 2026-02-21",
+    },
+]
+
+DOCTRINE_PATTERNS = {
+    "major_questions": [
+        r"major questions",
+        r"major.questions doctrine",
+        r"extraordinary.{0,30}delegat",
+        r"clear congressional authorization",
+        r"economic and political significance",
+        r"transformative expansion",
+    ],
+    "clear_statement": [
+        r"clear.statement rule",
+        r"clear statement",
+        r"express words",
+        r"expressly (given|conferred|authorized)",
+        r"clear(ly)? authoriz",
+        r"must.*point to.*clear",
+    ],
+    "nondelegation": [
+        r"nondelegation",
+        r"non.delegation",
+        r"intelligible principle",
+        r"legislative power.*delegat",
+        r"delegat.*legislative power",
+        r"Article I.*vest",
+    ],
+    "separation_of_powers": [
+        r"separation of powers",
+        r"legislative.{0,15}executive",
+        r"executive.{0,15}legislative",
+        r"Article I.*Article II",
+        r"Vesting Clause",
+        r"constitutional structure",
+    ],
+    "taxing_power": [
+        r"taxing power",
+        r"power to tax",
+        r"power to impose tariffs",
+        r"Taxes, Duties, Imposts",
+        r"revenue.raising",
+        r"birth.right power",
+        r"access to the pockets",
+    ],
+    "statutory_interpretation": [
+        r"ordinary meaning",
+        r"statutory (text|construction|interpretation)",
+        r"plain (meaning|text|reading)",
+        r"neighboring words",
+        r"noscitur a sociis",
+        r"textual(ist|ism)?",
+    ],
+    "foreign_affairs": [
+        r"foreign affairs",
+        r"foreign (policy|relations|commerce)",
+        r"national security",
+        r"external affairs",
+        r"warmaking power",
+        r"Commander in Chief",
+    ],
+    "emergency_powers": [
+        r"emergency power",
+        r"national emergenc",
+        r"unusual and extraordinary",
+        r"IEEPA.*emergenc",
+        r"emergenc.*IEEPA",
+        r"Youngstown",
+    ],
+    "congressional_delegation": [
+        r"Congress.*delegat",
+        r"delegat.*Congress",
+        r"tariff.*delegat",
+        r"delegat.*tariff",
+        r"historical.*delegat",
+        r"delegation.*statute",
+        r"President shall proclaim",
+        r"President.*authorized.*proclaim",
+        r"empowers the President",
+        r"authority.*President",
+    ],
+    "trade_policy": [
+        r"balance.of.payments",
+        r"trade deficit",
+        r"import surcharge",
+        r"import restrict",
+        r"import dut",
+        r"tariff",
+        r"customs duty",
+        r"ad valorem",
+        r"Trade Act",
+        r"section 122",
+        r"quotas?",
+    ],
+}
+
+DOCTRINE_PRIMARY_THRESHOLD = 3
+DOCTRINE_SECONDARY_THRESHOLD = 1
+
+
+def classify_doctrines(text):
+    text_lower = text.lower()
+    scores = {}
+    for doctrine, patterns in DOCTRINE_PATTERNS.items():
+        count = 0
+        for pat in patterns:
+            count += len(re.findall(pat, text_lower))
+        if count >= DOCTRINE_SECONDARY_THRESHOLD:
+            scores[doctrine] = count
+
+    ranked = sorted(scores.items(), key=lambda x: -x[1])
+
+    primary = []
+    secondary = []
+    for doctrine, count in ranked:
+        if count >= DOCTRINE_PRIMARY_THRESHOLD and len(primary) < 3:
+            primary.append(doctrine)
+        elif len(secondary) < 2:
+            secondary.append(doctrine)
+        if len(primary) + len(secondary) >= 5:
+            break
+
+    return primary, secondary
+
+
+def file_hash(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+
+
+def segment_statute(text):
+    blocks = []
+    sections = re.split(r'\n## \(([a-h])\)', text)
+    if sections[0].strip():
+        title_block = sections[0].strip()
+        if title_block:
+            blocks.append({
+                "title": "Section 122 — Title and authority",
+                "text": title_block,
+            })
+
+    for i in range(1, len(sections), 2):
+        letter = sections[i]
+        body = sections[i + 1].strip() if i + 1 < len(sections) else ""
+        first_line = body.split("\n")[0].strip() if body else ""
+        title = f"Section 122({letter}) — {first_line[:80]}"
+        blocks.append({
+            "title": title,
+            "text": f"({letter}) {body}",
+        })
+
+    return blocks
+
+
+def segment_proclamation(text):
+    blocks = []
+    lines = text.split("\n\n")
+
+    preamble = []
+    findings = []
+    operative_finding = []
+    exemptions = []
+    exemption_justification = []
+    authority_citation = []
+    operative_clauses = []
+    signature = []
+
+    phase = "preamble"
+    for para in lines:
+        stripped = para.strip()
+        if not stripped:
+            continue
+
+        if "I have received certain requested information" in stripped:
+            phase = "findings"
+        elif "After considering the information, opinions" in stripped:
+            phase = "operative_finding"
+        elif "shall not apply to the following products" in stripped:
+            phase = "exemptions"
+        elif "I find that each exception" in stripped:
+            phase = "exemption_justification"
+        elif "Section 122 authorizes the President" in stripped:
+            phase = "authority_citation"
+        elif "NOW, THEREFORE" in stripped:
+            phase = "operative_clauses"
+        elif "IN WITNESS WHEREOF" in stripped:
+            phase = "signature"
+
+        if phase == "preamble":
+            preamble.append(stripped)
+        elif phase == "findings":
+            findings.append(stripped)
+        elif phase == "operative_finding":
+            operative_finding.append(stripped)
+        elif phase == "exemptions":
+            exemptions.append(stripped)
+        elif phase == "exemption_justification":
+            exemption_justification.append(stripped)
+        elif phase == "authority_citation":
+            authority_citation.append(stripped)
+        elif phase == "operative_clauses":
+            operative_clauses.append(stripped)
+        elif phase == "signature":
+            signature.append(stripped)
+
+    if preamble:
+        blocks.append({
+            "title": "Proclamation — Preamble and statutory authority",
+            "text": "\n\n".join(preamble),
+        })
+    if findings:
+        mid = len(findings) // 2
+        blocks.append({
+            "title": "Proclamation — Balance-of-payments findings (trade deficit)",
+            "text": "\n\n".join(findings[:mid]),
+        })
+        blocks.append({
+            "title": "Proclamation — Balance-of-payments findings (investment position)",
+            "text": "\n\n".join(findings[mid:]),
+        })
+    if operative_finding:
+        blocks.append({
+            "title": "Proclamation — Presidential finding and surcharge imposition",
+            "text": "\n\n".join(operative_finding),
+        })
+    if exemptions:
+        blocks.append({
+            "title": "Proclamation — Product exemptions (a)-(m)",
+            "text": "\n\n".join(exemptions),
+        })
+    if exemption_justification:
+        blocks.append({
+            "title": "Proclamation — Exemption justification and consistency findings",
+            "text": "\n\n".join(exemption_justification),
+        })
+    if authority_citation:
+        blocks.append({
+            "title": "Proclamation — Authority citations (Section 122, Section 604)",
+            "text": "\n\n".join(authority_citation),
+        })
+    if operative_clauses:
+        op_text = "\n\n".join(operative_clauses)
+        op_parts = re.split(r'\n\n(?=\(\d+\))', op_text)
+        if len(op_parts) > 1:
+            blocks.append({
+                "title": "Proclamation — Operative clauses (surcharge rate, scope, FTZ)",
+                "text": "\n\n".join(op_parts[:len(op_parts)//2]),
+            })
+            blocks.append({
+                "title": "Proclamation — Operative clauses (effective date, USTR monitoring, severability)",
+                "text": "\n\n".join(op_parts[len(op_parts)//2:]),
+            })
+        else:
+            blocks.append({
+                "title": "Proclamation — Operative clauses",
+                "text": op_text,
+            })
+    if signature:
+        blocks.append({
+            "title": "Proclamation — Signature block",
+            "text": "\n\n".join(signature),
+        })
+
+    return blocks
+
+
+def segment_fact_sheet(text):
+    blocks = []
+    sections = re.split(r'\n\n([A-Z][A-Z\s,&:.]+:)\n\n', text)
+
+    if sections[0].strip():
+        intro = sections[0].strip()
+        lines = [l for l in intro.split("\n") if l.strip()]
+        if len(lines) > 1:
+            blocks.append({
+                "title": "Fact Sheet — Title and date",
+                "text": intro,
+            })
+
+    for i in range(1, len(sections), 2):
+        heading = sections[i].strip().rstrip(":")
+        body = sections[i + 1].strip() if i + 1 < len(sections) else ""
+        if not body:
+            continue
+
+        heading_short = heading.title()
+        if len(heading_short) > 50:
+            heading_short = heading_short[:50].rsplit(" ", 1)[0]
+        blocks.append({
+            "title": f"Fact Sheet — {heading_short}",
+            "text": f"{heading}:\n\n{body}",
+        })
+
+    if len(blocks) <= 1:
+        full_text = text.strip()
+        paragraphs = full_text.split("\n\n")
+        chunk_size = max(1, len(paragraphs) // 3)
+        for i in range(0, len(paragraphs), chunk_size):
+            chunk = "\n\n".join(paragraphs[i:i + chunk_size])
+            if not chunk.strip():
+                continue
+            first_words = chunk.split()[:8]
+            title = f"Fact Sheet — {' '.join(first_words)}"
+            blocks.append({
+                "title": title[:80],
+                "text": chunk,
+            })
+
+    return blocks
+
+
+def make_authority(source):
+    if source["doc_type"] == "statute":
+        return {
+            "statute_name": "Trade Act of 1974",
+            "section": "122",
+        }
+    elif source["doc_type"] == "proclamation":
+        return {
+            "statute_name": "Trade Act of 1974",
+            "section": "122",
+            "additional": ["3 U.S.C. 301", "19 U.S.C. 2483 (Section 604)"],
+        }
+    else:
+        return {
+            "statute_name": "Trade Act of 1974",
+            "section": "122",
+        }
+
+
+def make_action(source):
+    if source["doc_type"] == "statute":
+        return {
+            "action_type": "statutory_authorization",
+            "rate_percent": None,
+            "cap_percent": 15,
+            "duration_days": 150,
+        }
+    elif source["doc_type"] == "proclamation":
+        return {
+            "action_type": "tariff_imposition",
+            "rate_percent": 10,
+            "cap_percent": 15,
+            "duration_days": 150,
+        }
+    else:
+        return {
+            "action_type": "tariff_imposition",
+            "rate_percent": 10,
+            "cap_percent": 15,
+            "duration_days": 150,
+        }
+
+
+def write_block(block_dir, block_num, block, source):
+    date_part = source["date"].replace("-", "")
+    doc_type = source["doc_type"]
+    block_id = f"{date_part}_{CORPUS}_{doc_type}_{block_num:04d}"
+
+    primary, secondary = classify_doctrines(block["text"])
+    primary_str = ",".join(primary) if primary else "none"
+    secondary_str = ",".join(secondary) if secondary else "none"
+
+    authority = make_authority(source)
+    action = make_action(source)
+
+    authority_yaml = f'  statute_name: "{authority["statute_name"]}"\n  section: "{authority["section"]}"'
+    if "additional" in authority:
+        authority_yaml += f'\n  additional: {json.dumps(authority["additional"])}'
+
+    action_yaml = (
+        f'  action_type: "{action["action_type"]}"\n'
+        f'  rate_percent: {action["rate_percent"] if action["rate_percent"] is not None else "null"}\n'
+        f'  cap_percent: {action["cap_percent"]}\n'
+        f'  duration_days: {action["duration_days"]}'
+    )
+
+    title_escaped = block["title"].replace('"', '\\"')
+
+    frontmatter = f"""---
+corpus: "{CORPUS}"
+doc_type: "{doc_type}"
+title: "{title_escaped}"
+date: "{source['date']}"
+source_name: "{source['source_name']}"
+source_url: "{source['source_url']}"
+actor: "{source['actor']}"
+authority:
+{authority_yaml}
+action:
+{action_yaml}
+scope:
+  geographic: "global"
+  goods_scope: "all imports"
+judicial_status: "not_yet_reviewed"
+related_cases: "Learning Resources, Inc. v. Trump (24-1287, 25-250)"
+block_id: "{block_id}"
+page_start: null
+page_end: null
+doctrines_primary: "{primary_str}"
+doctrines_secondary: "{secondary_str}"
+---
+
+"""
+    content = frontmatter + block["text"].strip() + "\n"
+    filepath = block_dir / f"{block_num:04d}.md"
+    filepath.write_text(content)
+    return {
+        "block_id": block_id,
+        "doc_id": source["doc_id"],
+        "doc_type": doc_type,
+        "title": block["title"],
+        "file": str(filepath.relative_to(DECISION_DIR)),
+        "word_count": len(block["text"].split()),
+        "doctrines_primary": primary,
+        "doctrines_secondary": secondary,
+    }
+
+
+def main():
+    BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+
+    manifest = {
+        "corpus": CORPUS,
+        "title": "Section 122 Global Import Surcharge",
+        "date": "2026-02-21",
+        "description": "Presidential invocation of 19 U.S.C. § 2132 (Section 122 of the Trade Act of 1974) to impose a 10% global import surcharge, effective 2026-02-24",
+        "sources": [],
+        "pending_sources": [],
+        "documents": [],
+        "blocks": [],
+    }
+
+    retrieval_time = datetime.now(timezone.utc).isoformat()
+    total_blocks = 0
+
+    for source in SOURCES:
+        extracted_path = EXTRACTED_DIR / source["extracted_file"]
+        if not extracted_path.exists():
+            print(f"SKIP: {extracted_path} not found")
+            continue
+
+        text = extracted_path.read_text()
+        src_hash = file_hash(extracted_path)
+
+        manifest["sources"].append({
+            "doc_id": source["doc_id"],
+            "doc_type": source["doc_type"],
+            "title": source["title"],
+            "source_url": source["source_url"],
+            "retrieved": retrieval_time,
+            "hash": src_hash,
+            "notes": f"Fetched from {source['source_name']}",
+        })
+
+        print(f"Segmenting {source['doc_type']}: {source['title']}")
+
+        if source["doc_type"] == "statute":
+            blocks = segment_statute(text)
+        elif source["doc_type"] == "proclamation":
+            blocks = segment_proclamation(text)
+        elif source["doc_type"] == "fact_sheet":
+            blocks = segment_fact_sheet(text)
+        else:
+            blocks = [{"title": source["title"], "text": text}]
+
+        print(f"  -> {len(blocks)} blocks")
+
+        block_dir = BLOCKS_DIR / source["block_subdir"]
+        block_dir.mkdir(parents=True, exist_ok=True)
+
+        doc_block_manifests = []
+        for i, block in enumerate(blocks, 1):
+            bm = write_block(block_dir, i, block, source)
+            doc_block_manifests.append(bm)
+            total_blocks += 1
+
+        manifest["documents"].append({
+            "doc_id": source["doc_id"],
+            "doc_type": source["doc_type"],
+            "title": source["title"],
+            "date": source["date"],
+            "actor": source["actor"],
+            "extracted_file": f"extracted/{source['extracted_file']}",
+            "block_count": len(blocks),
+            "block_dir": f"blocks/{source['block_subdir']}",
+        })
+        manifest["blocks"].extend(doc_block_manifests)
+
+    for pending in PENDING_SOURCES:
+        manifest["pending_sources"].append(pending)
+
+    manifest_path = DECISION_DIR / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+    doctrine_counts = {}
+    for bm in manifest["blocks"]:
+        for d in bm.get("doctrines_primary", []):
+            doctrine_counts[d] = doctrine_counts.get(d, 0) + 1
+        for d in bm.get("doctrines_secondary", []):
+            doctrine_counts[d] = doctrine_counts.get(d, 0) + 1
+
+    print(f"\nDone: {total_blocks} blocks across {len(SOURCES)} documents")
+    print(f"Manifest: {manifest_path}")
+    print(f"Blocks:   {BLOCKS_DIR}")
+    if doctrine_counts:
+        print(f"\nDoctrine distribution (primary+secondary):")
+        for d, c in sorted(doctrine_counts.items(), key=lambda x: -x[1]):
+            print(f"  {d:30s} {c:3d} blocks")
+
+
+if __name__ == "__main__":
+    main()
