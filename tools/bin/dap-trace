@@ -1,0 +1,685 @@
+#!/usr/bin/env python3
+"""dap-trace: Analyze DAP execution traces from ADK sessions.
+
+Inspects query features, compiled DAGs, agent timing, and plan correctness
+for sessions run under the Deterministic Affordance Planner.
+
+Usage:
+  dap-trace list                              # List sessions with DAP plan summaries
+  dap-trace plan SESSION_ID                   # Show compiled plan for a session
+  dap-trace plan SESSION_ID -q 2              # Plan for query 2 in multi-turn session
+  dap-trace timeline SESSION_ID               # Agent timing waterfall
+  dap-trace timeline SESSION_ID -q 1          # Timeline for specific query
+  dap-trace validate SESSION_ID               # Check plan vs actual execution
+  dap-trace compare SESSION_A SESSION_B       # Side-by-side plan comparison
+  dap-trace features "query text"             # Dry-run: show features without running pipeline
+  dap-trace compile "query text"              # Dry-run: show compiled plan without running
+  dap-trace --json ...                        # JSON output for any command
+"""
+
+import argparse
+import json
+import sqlite3
+import sys
+from datetime import datetime
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DB_PATH = PROJECT_ROOT / "decision_rag_adk" / ".adk" / "session.db"
+
+sys.path.insert(0, str(PROJECT_ROOT))
+
+AFFORDANCE_TO_AGENT = {
+    "retrieval": "retriever",
+    "vote_structure": "join_analysis",
+    "holdings": "holding_candidate",
+    "fractures": "fracture_classifier",
+    "marks": "marks_evaluator",
+    "claim_assessment": "claim_assessor",
+    "impact_analysis": "impact_analyst",
+    "synthesis": "synthesis",
+}
+
+AGENT_TO_AFFORDANCE = {v: k for k, v in AFFORDANCE_TO_AGENT.items()}
+
+
+def get_db():
+    if not DB_PATH.exists():
+        print(f"ERROR: Session DB not found at {DB_PATH}", file=sys.stderr)
+        sys.exit(1)
+    return sqlite3.connect(str(DB_PATH))
+
+
+def resolve_session_id(prefix):
+    db = get_db()
+    rows = db.execute(
+        "SELECT id FROM sessions WHERE id LIKE ? ORDER BY update_time DESC",
+        (prefix + "%",),
+    ).fetchall()
+    db.close()
+    if not rows:
+        print(f"No session matching '{prefix}'", file=sys.stderr)
+        sys.exit(1)
+    if len(rows) > 1 and not any(r[0] == prefix for r in rows):
+        print(f"Ambiguous prefix '{prefix}' matches {len(rows)} sessions:", file=sys.stderr)
+        for r in rows:
+            print(f"  {r[0]}", file=sys.stderr)
+        sys.exit(1)
+    return rows[0][0]
+
+
+def load_events(session_id):
+    db = get_db()
+    rows = db.execute(
+        "SELECT event_data, timestamp FROM events WHERE session_id = ? ORDER BY timestamp ASC",
+        (session_id,),
+    ).fetchall()
+    db.close()
+    events = []
+    for raw, ts in rows:
+        data = json.loads(raw)
+        data["_db_timestamp"] = ts
+        events.append(data)
+    return events
+
+
+def load_session_state(session_id):
+    db = get_db()
+    row = db.execute(
+        "SELECT state FROM sessions WHERE id = ?", (session_id,),
+    ).fetchone()
+    db.close()
+    if row and row[0]:
+        return json.loads(row[0])
+    return {}
+
+
+def extract_turns(events):
+    turns = []
+    current = None
+    for ev in events:
+        author = ev.get("author", "")
+        parts = ev.get("content", {}).get("parts", [])
+        text = ""
+        for p in parts:
+            if p.get("text"):
+                text = p["text"]
+                break
+        if author == "user" and text:
+            if current:
+                turns.append(current)
+            current = {"query": text, "events": [], "t0": ev["_db_timestamp"]}
+        if current is not None:
+            current["events"].append(ev)
+    if current:
+        turns.append(current)
+    return turns
+
+
+def get_plan_from_turn(turn):
+    for ev in turn["events"]:
+        sd = ev.get("actions", {}).get("stateDelta", ev.get("actions", {}).get("state_delta", {}))
+        if "execution_plan" in sd:
+            raw = sd["execution_plan"]
+            return json.loads(raw) if isinstance(raw, str) else raw
+    state = {}
+    for ev in turn["events"]:
+        sd = ev.get("actions", {}).get("stateDelta", ev.get("actions", {}).get("state_delta", {}))
+        state.update(sd)
+    if "execution_plan" in state:
+        raw = state["execution_plan"]
+        return json.loads(raw) if isinstance(raw, str) else raw
+    return None
+
+
+def get_features_from_turn(turn):
+    for ev in turn["events"]:
+        sd = ev.get("actions", {}).get("stateDelta", ev.get("actions", {}).get("state_delta", {}))
+        if "query_features" in sd:
+            raw = sd["query_features"]
+            return json.loads(raw) if isinstance(raw, str) else raw
+    return None
+
+
+def compute_timeline(turn):
+    t0 = turn["t0"]
+    agent_spans = {}
+    current_agent = None
+    current_start = None
+
+    for ev in turn["events"]:
+        author = ev.get("author", "")
+        ts = ev["_db_timestamp"]
+        sd = ev.get("actions", {}).get("stateDelta", ev.get("actions", {}).get("state_delta", {}))
+
+        if author == "user":
+            continue
+
+        # DAP trace completion markers
+        for key in sd:
+            if key.startswith("dap_trace_"):
+                aff_id = key[len("dap_trace_"):]
+                agent_name = AFFORDANCE_TO_AGENT.get(aff_id, aff_id)
+                if agent_name in agent_spans:
+                    agent_spans[agent_name]["end"] = ts
+                    agent_spans[agent_name]["elapsed"] = ts - agent_spans[agent_name]["start"]
+
+        # Track agent start/end by author transitions
+        if author != "decision_rag" and author != current_agent:
+            if current_agent and current_agent in agent_spans:
+                agent_spans[current_agent]["end"] = ts
+                agent_spans[current_agent]["elapsed"] = ts - agent_spans[current_agent]["start"]
+            current_agent = author
+            if author not in agent_spans:
+                agent_spans[author] = {
+                    "start": ts,
+                    "end": ts,
+                    "elapsed": 0,
+                    "offset": ts - t0,
+                    "events": 0,
+                    "tool_calls": 0,
+                    "state_keys": [],
+                }
+            agent_spans[author]["events"] += 1
+
+        if author in agent_spans:
+            agent_spans[author]["end"] = ts
+            agent_spans[author]["elapsed"] = ts - agent_spans[author]["start"]
+            agent_spans[author]["events"] += 1
+
+            parts = ev.get("content", {}).get("parts", [])
+            for p in parts:
+                if p.get("functionCall"):
+                    agent_spans[author]["tool_calls"] += 1
+
+            for key in sd:
+                if not key.startswith("dap_trace_") and not key.startswith("dap_error_"):
+                    agent_spans[author]["state_keys"].append(key)
+
+    return agent_spans
+
+
+def get_actual_agents(turn):
+    seen = []
+    for ev in turn["events"]:
+        author = ev.get("author", "")
+        if author not in ("user", "decision_rag") and author not in seen:
+            seen.append(author)
+    return seen
+
+
+# ── Commands ─────────────────────────────────────────────────────────
+
+def cmd_list(args):
+    db = get_db()
+    rows = db.execute(
+        "SELECT id, create_time, update_time FROM sessions ORDER BY update_time DESC"
+    ).fetchall()
+    db.close()
+
+    for sid, ct, ut in rows:
+        events = load_events(sid)
+        turns = extract_turns(events)
+        created = datetime.fromtimestamp(ct).strftime("%Y-%m-%d %H:%M")
+        total_events = len(events)
+
+        print(f"  {sid}")
+        print(f"    created={created}  events={total_events}  turns={len(turns)}")
+
+        for i, turn in enumerate(turns):
+            plan = get_plan_from_turn(turn)
+            q_preview = turn["query"][:65]
+            if plan:
+                order = plan.get("execution_order", [])
+                rejected = [r["id"] for r in plan.get("rejected_affordances", [])]
+                agents_ran = len(order)
+                intents = [k for k, v in plan.get("query_features", {}).get("intents", {}).items() if v]
+                print(f"    q{i+1}: {q_preview}")
+                print(f"        intents: {', '.join(intents)}")
+                print(f"        plan: {' → '.join(order)} ({agents_ran} agents)")
+                if rejected:
+                    print(f"        rejected: {', '.join(rejected)}")
+            else:
+                print(f"    q{i+1}: {q_preview}")
+                print(f"        [no DAP plan found — pre-DAP session?]")
+        print()
+
+
+def cmd_plan(args):
+    sid = resolve_session_id(args.session_id)
+    events = load_events(sid)
+    turns = extract_turns(events)
+
+    idx = (args.query or 1) - 1
+    if idx < 0 or idx >= len(turns):
+        print(f"Query {args.query} not found. Session has {len(turns)} turns.", file=sys.stderr)
+        sys.exit(1)
+
+    turn = turns[idx]
+    plan = get_plan_from_turn(turn)
+    features = get_features_from_turn(turn)
+
+    if not plan:
+        print("No DAP plan found for this query.", file=sys.stderr)
+        sys.exit(1)
+
+    if args.json:
+        print(json.dumps({"query": turn["query"], "features": features, "plan": plan}, indent=2))
+        return
+
+    print(f"{'=' * 72}")
+    print(f"  QUERY: {turn['query'][:100]}")
+    print(f"{'=' * 72}")
+
+    if features:
+        planner_type = features.get("planner_type", "heuristic")
+        print(f"\n  PLANNER: {planner_type}")
+
+        llm_reasoning = features.get("llm_reasoning")
+        if llm_reasoning:
+            print(f"  LLM REASONING: {llm_reasoning}")
+
+        intents = features.get("intents", {})
+        active = [k for k, v in intents.items() if v]
+        inactive = [k for k, v in intents.items() if not v]
+        print(f"\n  INTENTS")
+        print(f"    active:   {', '.join(active)}")
+        print(f"    inactive: {', '.join(inactive)}")
+
+        rules = features.get("triggered_rules", [])
+        if rules:
+            print(f"\n  TRIGGERED RULES ({len(rules)})")
+            for r in rules:
+                print(f"    [{r['intent']}] {r['type']}: {r['match']}")
+
+    print(f"\n  EXECUTION ORDER")
+    print(f"    {' → '.join(plan['execution_order'])}")
+
+    selected = plan.get("selected_affordances", [])
+    if selected:
+        print(f"\n  SELECTED AFFORDANCES ({len(selected)})")
+        for s in selected:
+            agent = AFFORDANCE_TO_AGENT.get(s["id"], "?")
+            print(f"    {s['id']:20s}  agent={agent:25s}  reason={s['reason']}")
+
+    rejected = plan.get("rejected_affordances", [])
+    if rejected:
+        print(f"\n  REJECTED AFFORDANCES ({len(rejected)})")
+        for r in rejected:
+            print(f"    {r['id']:20s}  reason={r['reason']}")
+
+    scope = plan.get("corpus_scope", [])
+    if scope:
+        print(f"\n  CORPUS SCOPE")
+        for c in scope:
+            print(f"    {c}")
+
+    dag = plan.get("dag", {})
+    edges = dag.get("edges", [])
+    if edges:
+        print(f"\n  DAG EDGES")
+        for e in edges:
+            label = f" ({e['key']})" if e.get("key") and e["key"] != "_terminal_order" else ""
+            print(f"    {e['from']} → {e['to']}{label}")
+    print()
+
+
+def cmd_timeline(args):
+    sid = resolve_session_id(args.session_id)
+    events = load_events(sid)
+    turns = extract_turns(events)
+
+    idx = (args.query or 1) - 1
+    if idx < 0 or idx >= len(turns):
+        print(f"Query {args.query} not found. Session has {len(turns)} turns.", file=sys.stderr)
+        sys.exit(1)
+
+    turn = turns[idx]
+    plan = get_plan_from_turn(turn)
+    spans = compute_timeline(turn)
+    t0 = turn["t0"]
+
+    if args.json:
+        print(json.dumps({"query": turn["query"], "spans": spans}, indent=2, default=str))
+        return
+
+    print(f"{'=' * 72}")
+    print(f"  QUERY: {turn['query'][:100]}")
+    print(f"{'=' * 72}")
+
+    planned = plan.get("execution_order", []) if plan else []
+    planned_agents = [AFFORDANCE_TO_AGENT.get(a, a) for a in planned]
+
+    total = 0
+    bar_width = 40
+
+    # Find max end time for bar scaling
+    max_end = max((s["end"] - t0 for s in spans.values()), default=1)
+    if max_end == 0:
+        max_end = 1
+
+    print(f"\n  {'AGENT':25s}  {'OFFSET':>7s}  {'ELAPSED':>8s}  {'CALLS':>5s}  WATERFALL")
+    print(f"  {'─' * 25}  {'─' * 7}  {'─' * 8}  {'─' * 5}  {'─' * bar_width}")
+
+    # Sort by start time
+    ordered = sorted(spans.items(), key=lambda x: x[1]["start"])
+    for agent, s in ordered:
+        offset = s["start"] - t0
+        elapsed = s["elapsed"]
+        total += elapsed
+        tc = s["tool_calls"]
+
+        # Waterfall bar
+        bar_start = int((s["start"] - t0) / max_end * bar_width)
+        bar_len = max(1, int(elapsed / max_end * bar_width))
+        bar = " " * bar_start + "█" * bar_len
+
+        aff = AGENT_TO_AFFORDANCE.get(agent, "")
+        planned_marker = "+" if agent in planned_agents else "?"
+        state_info = f"  → {', '.join(s['state_keys'])}" if s["state_keys"] else ""
+
+        print(f"  {agent:25s}  {offset:6.1f}s  {elapsed:7.1f}s  {tc:5d}  {bar}{state_info}")
+
+    print(f"\n  Total agent time: {total:.1f}s  |  Wall time: {max_end:.1f}s")
+
+    if plan:
+        skipped = [a for a in ["retriever", "join_analysis", "holding_candidate",
+                                "fracture_classifier", "marks_evaluator",
+                                "claim_assessor", "impact_analyst", "synthesis"]
+                   if a not in [x[0] for x in ordered]]
+        if skipped:
+            print(f"  Skipped: {', '.join(skipped)}")
+    print()
+
+
+def cmd_validate(args):
+    sid = resolve_session_id(args.session_id)
+    events = load_events(sid)
+    turns = extract_turns(events)
+
+    idx = (args.query or 1) - 1
+    if idx < 0 or idx >= len(turns):
+        print(f"Query {args.query} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    turn = turns[idx]
+    plan = get_plan_from_turn(turn)
+    if not plan:
+        print("No DAP plan found.", file=sys.stderr)
+        sys.exit(1)
+
+    actual = get_actual_agents(turn)
+    planned_order = plan.get("execution_order", [])
+    planned_agents = [AFFORDANCE_TO_AGENT.get(a, a) for a in planned_order]
+
+    issues = []
+
+    # Check: all planned agents ran
+    for pa in planned_agents:
+        if pa not in actual:
+            issues.append(f"MISSING: {pa} was planned but did not run")
+
+    # Check: no unplanned agents ran
+    for aa in actual:
+        if aa not in planned_agents:
+            issues.append(f"UNPLANNED: {aa} ran but was not in the plan")
+
+    # Check: execution order matches
+    actual_planned = [a for a in actual if a in planned_agents]
+    if actual_planned != planned_agents:
+        issues.append(f"ORDER MISMATCH: planned={planned_agents}, actual={actual_planned}")
+
+    # Check: state keys produced
+    spans = compute_timeline(turn)
+    expected_outputs = {}
+    from decision_rag_adk.planner import load_affordance_catalog
+    catalog, _ = load_affordance_catalog(str(PROJECT_ROOT / "config" / "affordances.yaml"))
+    for aff_id in planned_order:
+        for out in catalog[aff_id].get("outputs", []):
+            expected_outputs[out] = aff_id
+
+    state = load_session_state(sid)
+    for key, producer in expected_outputs.items():
+        if key not in state:
+            agent = AFFORDANCE_TO_AGENT.get(producer, producer)
+            # Check if it was written as state delta in events
+            found = False
+            for ev in turn["events"]:
+                sd = ev.get("actions", {}).get("stateDelta", ev.get("actions", {}).get("state_delta", {}))
+                if key in sd:
+                    found = True
+                    break
+            if not found:
+                issues.append(f"MISSING STATE: {key} (expected from {producer}/{agent})")
+
+    # Check: DAP errors
+    for ev in turn["events"]:
+        sd = ev.get("actions", {}).get("stateDelta", ev.get("actions", {}).get("state_delta", {}))
+        for key, val in sd.items():
+            if key.startswith("dap_error_"):
+                issues.append(f"DAP ERROR: {key} = {val}")
+
+    if args.json:
+        result = {
+            "session_id": sid,
+            "query": turn["query"],
+            "planned": planned_order,
+            "actual": actual,
+            "issues": issues,
+            "valid": len(issues) == 0,
+        }
+        print(json.dumps(result, indent=2))
+        return
+
+    print(f"{'=' * 72}")
+    print(f"  VALIDATE: {turn['query'][:80]}")
+    print(f"{'=' * 72}")
+    print(f"\n  Planned: {' → '.join(planned_order)}")
+    print(f"  Actual:  {' → '.join(actual)}")
+
+    if issues:
+        print(f"\n  ISSUES ({len(issues)}):")
+        for iss in issues:
+            print(f"    ✗ {iss}")
+    else:
+        print(f"\n  ✓ Plan matches execution — no issues found")
+    print()
+
+
+def cmd_compare(args):
+    sid_a = resolve_session_id(args.session_a)
+    sid_b = resolve_session_id(args.session_b)
+
+    events_a = load_events(sid_a)
+    events_b = load_events(sid_b)
+    turns_a = extract_turns(events_a)
+    turns_b = extract_turns(events_b)
+
+    qa = (args.query_a or 1) - 1
+    qb = (args.query_b or 1) - 1
+
+    if qa >= len(turns_a) or qb >= len(turns_b):
+        print("Query index out of range.", file=sys.stderr)
+        sys.exit(1)
+
+    ta, tb = turns_a[qa], turns_b[qb]
+    plan_a = get_plan_from_turn(ta)
+    plan_b = get_plan_from_turn(tb)
+    spans_a = compute_timeline(ta)
+    spans_b = compute_timeline(tb)
+
+    if args.json:
+        print(json.dumps({
+            "a": {"session": sid_a[:12], "query": ta["query"], "plan": plan_a, "spans": spans_a},
+            "b": {"session": sid_b[:12], "query": tb["query"], "plan": plan_b, "spans": spans_b},
+        }, indent=2, default=str))
+        return
+
+    print(f"{'=' * 72}")
+    print(f"  COMPARE")
+    print(f"{'=' * 72}")
+
+    print(f"\n  A [{sid_a[:12]}]: {ta['query'][:60]}")
+    print(f"  B [{sid_b[:12]}]: {tb['query'][:60]}")
+
+    order_a = plan_a.get("execution_order", []) if plan_a else []
+    order_b = plan_b.get("execution_order", []) if plan_b else []
+
+    print(f"\n  {'':20s}  {'A':^20s}  {'B':^20s}")
+    print(f"  {'─' * 20}  {'─' * 20}  {'─' * 20}")
+
+    intents_a = plan_a.get("query_features", {}).get("intents", {}) if plan_a else {}
+    intents_b = plan_b.get("query_features", {}).get("intents", {}) if plan_b else {}
+    all_intents = sorted(set(list(intents_a.keys()) + list(intents_b.keys())))
+    for intent in all_intents:
+        va = "✓" if intents_a.get(intent) else "·"
+        vb = "✓" if intents_b.get(intent) else "·"
+        print(f"  {intent:20s}  {va:^20s}  {vb:^20s}")
+
+    print(f"\n  {'AFFORDANCE':20s}  {'A':^20s}  {'B':^20s}")
+    print(f"  {'─' * 20}  {'─' * 20}  {'─' * 20}")
+    all_affs = sorted(set(order_a + order_b))
+    for aff in all_affs:
+        in_a = "RAN" if aff in order_a else "skip"
+        in_b = "RAN" if aff in order_b else "skip"
+        print(f"  {aff:20s}  {in_a:^20s}  {in_b:^20s}")
+
+    print(f"\n  {'AGENT':20s}  {'A time':>10s}  {'B time':>10s}  {'diff':>10s}")
+    print(f"  {'─' * 20}  {'─' * 10}  {'─' * 10}  {'─' * 10}")
+    all_agents = sorted(set(list(spans_a.keys()) + list(spans_b.keys())))
+    for agent in all_agents:
+        ea = spans_a.get(agent, {}).get("elapsed", 0)
+        eb = spans_b.get(agent, {}).get("elapsed", 0)
+        diff = eb - ea
+        sign = "+" if diff > 0 else ""
+        a_str = f"{ea:.1f}s" if ea else "—"
+        b_str = f"{eb:.1f}s" if eb else "—"
+        d_str = f"{sign}{diff:.1f}s" if ea and eb else "—"
+        print(f"  {agent:20s}  {a_str:>10s}  {b_str:>10s}  {d_str:>10s}")
+    print()
+
+
+def _make_planner(use_llm=False):
+    if use_llm:
+        from decision_rag_adk.planner import LLMPlanner
+        return LLMPlanner()
+    from decision_rag_adk.planner import HeuristicPlanner
+    return HeuristicPlanner()
+
+
+def cmd_features(args):
+    use_llm = getattr(args, "llm", False)
+    if use_llm:
+        from decision_rag_adk.planner import load_affordance_catalog, load_corpus_manifest
+        catalog, _ = load_affordance_catalog(str(PROJECT_ROOT / "config" / "affordances.yaml"))
+        manifests = load_corpus_manifest(str(PROJECT_ROOT / "docs" / "decision"))
+    else:
+        catalog, manifests = None, None
+
+    planner = _make_planner(use_llm)
+    features = planner.analyze(args.query_text, manifests, catalog)
+
+    if args.json:
+        print(json.dumps(features, indent=2))
+        return
+
+    intents = features.get("intents", {})
+    active = [k for k, v in intents.items() if v]
+    planner_type = features.get("planner_type", "heuristic")
+    print(f"  Query: {args.query_text[:80]}")
+    print(f"  Planner: {planner_type}")
+    print(f"  Intents: {', '.join(active) if active else '(none → fallback factual_summary)'}")
+    if features.get("keywords"):
+        print(f"  Keywords: {', '.join(features['keywords'])}")
+    llm_reasoning = features.get("llm_reasoning")
+    if llm_reasoning:
+        print(f"  LLM reasoning: {llm_reasoning}")
+    rules = features.get("triggered_rules", [])
+    if rules:
+        print(f"  Rules ({len(rules)}):")
+        for r in rules:
+            print(f"    [{r['intent']}] {r['type']}: {r['match']}")
+
+
+def cmd_compile(args):
+    from decision_rag_adk.planner import compile_plan, load_affordance_catalog, load_corpus_manifest
+    catalog, ver = load_affordance_catalog(str(PROJECT_ROOT / "config" / "affordances.yaml"))
+    manifests = load_corpus_manifest(str(PROJECT_ROOT / "docs" / "decision"))
+    planner = _make_planner(getattr(args, "llm", False))
+    features = planner.analyze(args.query_text, manifests, catalog)
+    plan = compile_plan(features, manifests, catalog, ver)
+
+    if args.json:
+        print(json.dumps({"query": args.query_text, "features": features, "plan": plan}, indent=2))
+        return
+
+    intents = features.get("intents", {})
+    active = [k for k, v in intents.items() if v]
+    planner_type = features.get("planner_type", "heuristic")
+    print(f"  Query: {args.query_text[:80]}")
+    print(f"  Planner: {planner_type}")
+    print(f"  Intents: {', '.join(active)}")
+    print(f"  Plan: {' → '.join(plan['execution_order'])}")
+    print(f"  Agents: {len(plan['execution_order'])}")
+    print(f"  Corpus scope: {', '.join(plan.get('corpus_scope', []))}")
+
+    llm_reasoning = features.get("llm_reasoning")
+    if llm_reasoning:
+        print(f"  LLM reasoning: {llm_reasoning}")
+
+    rejected = plan.get("rejected_affordances", [])
+    if rejected:
+        print(f"  Rejected: {', '.join(r['id'] for r in rejected)}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="dap-trace",
+        description="Analyze DAP execution traces from ADK sessions",
+    )
+    parser.add_argument("--json", action="store_true", help="JSON output")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("list", help="List sessions with DAP plan summaries")
+
+    p_plan = sub.add_parser("plan", help="Show compiled plan for a session")
+    p_plan.add_argument("session_id")
+    p_plan.add_argument("-q", "--query", type=int, help="Query number (1-indexed)")
+
+    p_tl = sub.add_parser("timeline", help="Agent timing waterfall")
+    p_tl.add_argument("session_id")
+    p_tl.add_argument("-q", "--query", type=int, help="Query number (1-indexed)")
+
+    p_val = sub.add_parser("validate", help="Check plan vs actual execution")
+    p_val.add_argument("session_id")
+    p_val.add_argument("-q", "--query", type=int, help="Query number (1-indexed)")
+
+    p_cmp = sub.add_parser("compare", help="Side-by-side plan comparison")
+    p_cmp.add_argument("session_a")
+    p_cmp.add_argument("session_b")
+    p_cmp.add_argument("--query-a", type=int, default=1)
+    p_cmp.add_argument("--query-b", type=int, default=1)
+
+    p_feat = sub.add_parser("features", help="Dry-run: show features for a query")
+    p_feat.add_argument("query_text")
+    p_feat.add_argument("--llm", action="store_true", help="Use LLM planner instead of heuristic")
+
+    p_comp = sub.add_parser("compile", help="Dry-run: show compiled plan for a query")
+    p_comp.add_argument("query_text")
+    p_comp.add_argument("--llm", action="store_true", help="Use LLM planner instead of heuristic")
+
+    args = parser.parse_args()
+    dispatch = {
+        "list": cmd_list,
+        "plan": cmd_plan,
+        "timeline": cmd_timeline,
+        "validate": cmd_validate,
+        "compare": cmd_compare,
+        "features": cmd_features,
+        "compile": cmd_compile,
+    }
+    dispatch[args.command](args)
+
+
+if __name__ == "__main__":
+    main()

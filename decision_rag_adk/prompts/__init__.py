@@ -4,4 +4,6 @@ from .join_analysis import JOIN_ANALYSIS_INSTRUCTION
 from .holding import HOLDING_INSTRUCTION
 from .fracture import FRACTURE_INSTRUCTION
 from .marks import MARKS_INSTRUCTION
+from .claim_assessment import CLAIM_ASSESSMENT_INSTRUCTION
+from .impact import IMPACT_INSTRUCTION
 from .synthesis import SYNTHESIS_INSTRUCTION

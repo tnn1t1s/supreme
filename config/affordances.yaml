@@ -1,0 +1,114 @@
+version: "1.0"
+
+affordances:
+  retrieval:
+    agent: retriever
+    triggers_any:
+      - precedent
+      - compliance
+      - commentary_assessment
+      - factual_summary
+    requires:
+      - manifest.loaded
+    inputs: []
+    outputs:
+      - retrieved_blocks
+    cost: medium
+
+  vote_structure:
+    agent: join_analysis
+    triggers_any:
+      - precedent
+    requires:
+      - state.has(retrieved_blocks)
+      - corpus.scotus_present
+    inputs:
+      - retrieved_blocks
+    outputs:
+      - join_structure
+    cost: large
+
+  holdings:
+    agent: holding_candidate
+    triggers_any:
+      - precedent
+    requires:
+      - state.has(join_structure)
+    inputs:
+      - join_structure
+    outputs:
+      - holding_candidates
+    cost: large
+
+  fractures:
+    agent: fracture_classifier
+    triggers_any:
+      - precedent
+    requires:
+      - state.has(holding_candidates)
+    inputs:
+      - holding_candidates
+    outputs:
+      - fractures
+    cost: large
+
+  marks:
+    agent: marks_evaluator
+    triggers_any:
+      - marks
+    requires:
+      - state.has(holding_candidates)
+      - state.has(join_structure)
+      - state.has(fractures)
+    inputs:
+      - holding_candidates
+      - join_structure
+      - fractures
+    outputs:
+      - marks_analysis
+    cost: large
+
+  claim_assessment:
+    agent: claim_assessor
+    triggers_any:
+      - commentary_assessment
+    requires:
+      - state.has(retrieved_blocks)
+    inputs:
+      - retrieved_blocks
+      - holding_candidates
+      - fractures
+      - marks_analysis
+    outputs:
+      - claim_assessments
+    cost: large
+
+  impact_analysis:
+    agent: impact_analyst
+    triggers_any:
+      - commentary_assessment
+    requires:
+      - state.has(claim_assessments)
+    inputs:
+      - claim_assessments
+      - holding_candidates
+      - fractures
+      - marks_analysis
+    outputs:
+      - impact_notes
+    cost: medium
+
+  synthesis:
+    agent: synthesis
+    triggers_any:
+      - precedent
+      - compliance
+      - commentary_assessment
+      - factual_summary
+    requires:
+      - state.has(retrieved_blocks)
+    inputs:
+      - retrieved_blocks
+    outputs: []
+    cost: large
+    phase: terminal
