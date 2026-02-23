@@ -8,13 +8,15 @@ Every agent receives the **invariants preamble** (`invariants.py`) prepended to 
 
 | File | Contents |
 |------|----------|
-| `invariants.py` | 7 global invariants enforced across all agents |
+| `invariants.py` | 7 global invariants + 3-corpus preamble enforced across all agents |
 | `retriever.py` | Retrieval strategy and JSON output schema |
 | `join_analysis.py` | Join mapping rules and JSON output schema |
 | `holding.py` | Holding classification with width enforcement |
 | `fracture.py` | Fracture typing with cold measurable fields |
 | `marks.py` | Marks v. United States analysis with skepticism constraints |
-| `synthesis.py` | 8-section report format with clerical voice rules |
+| `claim_assessment.py` | Claim extraction, classification (5 statuses, 3 severities), structured JSON |
+| `impact.py` | Causal impact analysis with conservative language constraints |
+| `synthesis.py` | Multi-section report format with clerical voice rules |
 
 ## Invariants
 
@@ -25,6 +27,13 @@ Every agent receives the **invariants preamble** (`invariants.py`) prepended to 
 5. Doctrine precision (exact labels)
 6. No motive inference (text only)
 7. Marks skepticism (flag uncertainty)
+
+## Corpus Awareness
+
+The invariants preamble describes all 3 corpus types and instructs agents to:
+- Treat Corpus 1-2 (SCOTUS opinions, statutory/executive) as primary legal authority
+- Treat Corpus 3 (National Review) as external commentary to be assessed against primary authority
+- Never adopt NR claims as legal authority
 
 ## Tuning
 
