@@ -13,6 +13,8 @@ def query_decision_rag(
     justice: str = "",
     opinion_type: str = "",
     doctrine: str = "",
+    corpus: str = "",
+    author: str = "",
     top_k: int = 10,
 ) -> dict:
     """Query the Supreme Court decision RAG index with optional metadata filters.
@@ -22,6 +24,8 @@ def query_decision_rag(
         justice: Comma-separated justice names to filter by (e.g., "Roberts" or "Gorsuch,Barrett").
         opinion_type: Comma-separated opinion types to filter by (majority, concurrence, dissent, concurrence_in_part, syllabus).
         doctrine: Comma-separated doctrine tags to filter by (major_questions, nondelegation, taxing_power, etc.).
+        corpus: Comma-separated corpus names to filter by (e.g., "national_review", "section122_global_tariff").
+        author: Comma-separated author names to filter by (for national_review corpus).
         top_k: Number of top results to return (default 10).
 
     Returns:
@@ -52,6 +56,16 @@ def query_decision_rag(
             d = d.strip()
             if d:
                 cmd.extend(["-d", d])
+    if corpus:
+        for c in corpus.split(","):
+            c = c.strip()
+            if c:
+                cmd.extend(["-c", c])
+    if author:
+        for a in author.split(","):
+            a = a.strip()
+            if a:
+                cmd.extend(["-a", a])
 
     result = subprocess.run(
         cmd,

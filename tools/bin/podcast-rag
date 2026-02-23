@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""podcast-rag: RAG retriever for podcast transcripts.
+
+Ingests transcripts from data/, builds a vector index, runs queries,
+and outputs retrieved nodes with metadata for LLM synthesis.
+
+Usage:
+  podcast-rag ingest                      # Index all files in data/
+  podcast-rag query "your question"       # Single query, top-k nodes
+  podcast-rag research "topic" -n 5       # Multi-query expansion on a topic
+  podcast-rag research "topic" --program  # 5-point evidence-based program
+"""
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+INDEX_DIR = PROJECT_ROOT / ".rag_index"
+
+
+def get_settings():
+    from llama_index.core import Settings
+    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+    Settings.llm = None
+    return Settings
+
+
+def build_index():
+    from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext
+    get_settings()
+    if not DATA_DIR.exists() or not any(DATA_DIR.iterdir()):
+        print(f"ERROR: No files in {DATA_DIR}", file=sys.stderr)
+        sys.exit(1)
+    docs = SimpleDirectoryReader(str(DATA_DIR)).load_data()
+    index = VectorStoreIndex.from_documents(docs)
+    INDEX_DIR.mkdir(exist_ok=True)
+    index.storage_context.persist(persist_dir=str(INDEX_DIR))
+    print(f"Indexed {len(docs)} document(s) → {INDEX_DIR}")
+    return index
+
+
+def load_index():
+    from llama_index.core import StorageContext, load_index_from_storage
+    get_settings()
+    if not INDEX_DIR.exists():
+        print("No index found. Building...", file=sys.stderr)
+        return build_index()
+    storage_context = StorageContext.from_defaults(persist_dir=str(INDEX_DIR))
+    return load_index_from_storage(storage_context)
+
+
+def retrieve(index, query, top_k=5):
+    retriever = index.as_retriever(similarity_top_k=top_k)
+    return retriever.retrieve(query)
+
+
+def format_node(i, node):
+    lines = [
+        f"--- NODE {i+1} | score={node.score:.4f} ---",
+        f"source: {node.metadata.get('file_name', 'unknown')}",
+        f"size: {node.metadata.get('file_size', '?')} bytes",
+    ]
+    lines.append(node.text)
+    lines.append("")
+    return "\n".join(lines)
+
+
+def expand_queries(topic):
+    return [
+        f"What are the key arguments and evidence about {topic}?",
+        f"What practical frameworks or approaches are discussed for {topic}?",
+        f"What risks, challenges, or counterarguments exist for {topic}?",
+        f"How does {topic} connect to portfolio construction and monetization?",
+        f"What has changed historically or what future trends exist for {topic}?",
+    ]
+
+
+def cmd_ingest(args):
+    build_index()
+
+
+def cmd_query(args):
+    index = load_index()
+    nodes = retrieve(index, args.query, top_k=args.top_k)
+    if args.json:
+        out = []
+        for node in nodes:
+            out.append({
+                "score": round(node.score, 4),
+                "metadata": node.metadata,
+                "text": node.text,
+            })
+        print(json.dumps(out, indent=2))
+    else:
+        for i, node in enumerate(nodes):
+            print(format_node(i, node))
+
+
+def cmd_research(args):
+    index = load_index()
+    queries = expand_queries(args.topic)
+    seen_texts = set()
+
+    if args.program:
+        print(f"=== 5-POINT RESEARCH PROGRAM: {args.topic.upper()} ===\n")
+        print("Retrieving evidence across 5 dimensions...\n")
+
+    for qi, q in enumerate(queries):
+        print(f"{'=' * 80}")
+        print(f"DIMENSION {qi+1}: {q}")
+        print(f"{'=' * 80}")
+        nodes = retrieve(index, q, top_k=args.top_k)
+        for i, node in enumerate(nodes):
+            sig = node.text[:200]
+            if sig in seen_texts:
+                continue
+            seen_texts.add(sig)
+            print(format_node(i, node))
+
+    score_range = "N/A"
+    if nodes:
+        all_nodes = retrieve(index, args.topic, top_k=1)
+        if all_nodes:
+            score_range = f"{all_nodes[0].score:.2f}"
+
+    print(f"\n{'=' * 80}")
+    print(f"RAG METADATA")
+    print(f"  embeddings: bge-small-en-v1.5")
+    print(f"  queries: {len(queries)}")
+    print(f"  top_k: {args.top_k}/query")
+    print(f"  deduped: {len(seen_texts)} unique chunks")
+    print(f"  topic: {args.topic}")
+    if args.program:
+        print(f"\n  NOTE: Feed this output to an LLM with the prompt:")
+        print(f'  "Using ONLY the retrieved evidence, write a 5-point program for')
+        print(f'   {args.topic}. Under each point include a verbatim citation')
+        print(f'   with speaker name, timestamp, and metadata."')
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="podcast-rag",
+        description="RAG retriever for podcast transcripts",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_ingest = sub.add_parser("ingest", help="Index files in data/")
+    p_ingest.set_defaults(func=cmd_ingest)
+
+    p_query = sub.add_parser("query", help="Single query retrieval")
+    p_query.add_argument("query", help="The question to retrieve against")
+    p_query.add_argument("-k", "--top-k", type=int, default=5)
+    p_query.add_argument("--json", action="store_true", help="JSON output")
+    p_query.set_defaults(func=cmd_query)
+
+    p_research = sub.add_parser("research", help="Multi-query topic research")
+    p_research.add_argument("topic", help="Research topic to explore")
+    p_research.add_argument("-k", "--top-k", type=int, default=5)
+    p_research.add_argument("-n", "--num-queries", type=int, default=5)
+    p_research.add_argument("--program", action="store_true", help="5-point program mode")
+    p_research.set_defaults(func=cmd_research)
+
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

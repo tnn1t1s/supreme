@@ -1,0 +1,53 @@
+{
+  "source": "National Review",
+  "url": "https://www.nationalreview.com/bench-memos/test-article",
+  "title": "The Court Got It Right on Tariff Authority",
+  "author": "Ed Whelan",
+  "published_at": "2026-02-22",
+  "section": "Bench Memos",
+  "topic_tags": [
+    "SCOTUS",
+    "tariffs",
+    "executive_power",
+    "major_questions",
+    "separation_of_powers"
+  ],
+  "stance_vector": {
+    "executive_power": "favor_constraints",
+    "court_legitimacy": "support",
+    "congress_role": "pro_congress"
+  },
+  "claims": [
+    {
+      "claim": "The statutory holding correctly limits executive tariff authority to parameters Congress explicitly set.",
+      "support_type": "textual"
+    },
+    {
+      "claim": "Congress's delegation under IEEPA was never intended to authorize broad trade policy restructuring.",
+      "support_type": "historical"
+    },
+    {
+      "claim": "The major questions doctrine properly constrains agencies from claiming vast authority from ambiguous grants.",
+      "support_type": "institutional"
+    }
+  ],
+  "anchors": [
+    {
+      "quote": "Congress does not hide elephants in mouseholes",
+      "note": "Standard major questions framing adopted from Whitman v. ATA"
+    }
+  ],
+  "assumptions": [
+    "Congressional delegation frameworks should be interpreted narrowly",
+    "The executive branch has historically overstepped on trade authority",
+    "Judicial review of executive trade actions is constitutionally necessary"
+  ],
+  "tensions_or_flags": [
+    "Treats the plurality major questions reasoning as if it were a holding",
+    "Does not address the dissent's historical delegation evidence"
+  ],
+  "questions_for_cross_analysis": [
+    "Does the statutory text of IEEPA actually limit tariff authority as claimed?",
+    "Which justices explicitly reject the major questions framing?"
+  ]
+}

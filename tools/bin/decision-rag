@@ -14,6 +14,8 @@ Usage:
   decision-rag query "delegation" -d major_questions -j Thomas  # Combined filters
   decision-rag query "Section 122" -c section122_global_tariff  # Filter by corpus
   decision-rag query "tariff" --doc-type proclamation    # Filter by doc type
+  decision-rag query "executive power" -a "Ed Whelan"    # Filter by author (NR)
+  decision-rag query "SCOTUS" -s "Bench Memos"           # Filter by section (NR)
   decision-rag list                                      # List indexed decisions
 
 Doctrine tags: major_questions, clear_statement, nondelegation, separation_of_powers,
@@ -120,7 +122,7 @@ def load_index():
     return load_index_from_storage(storage_context)
 
 
-def retrieve_filtered(index, query, justices=None, opinion_types=None, doctrines=None, corpus=None, doc_types=None, top_k=10):
+def retrieve_filtered(index, query, justices=None, opinion_types=None, doctrines=None, corpus=None, doc_types=None, authors=None, sections=None, top_k=10):
     from llama_index.core.vector_stores import MetadataFilters, MetadataFilter, FilterOperator, FilterCondition
 
     filters_list = []
@@ -139,6 +141,12 @@ def retrieve_filtered(index, query, justices=None, opinion_types=None, doctrines
     if doc_types:
         for dt in doc_types:
             filters_list.append(MetadataFilter(key="doc_type", value=dt, operator=FilterOperator.EQ))
+    if authors:
+        for a in authors:
+            filters_list.append(MetadataFilter(key="author", value=a, operator=FilterOperator.EQ))
+    if sections:
+        for s in sections:
+            filters_list.append(MetadataFilter(key="section", value=s, operator=FilterOperator.EQ))
 
     if filters_list:
         metadata_filters = MetadataFilters(filters=filters_list, condition=FilterCondition.OR if len(filters_list) > 1 else FilterCondition.AND)
@@ -166,7 +174,12 @@ def format_node(i, node):
     primary = m.get("doctrines_primary", "none")
     secondary = m.get("doctrines_secondary", "none")
     lines = [f"--- NODE {i+1} | score={node.score:.4f} ---"]
-    if m.get("corpus"):
+    if m.get("corpus") == "national_review":
+        lines.append(f"  corpus: {m['corpus']}")
+        lines.append(f"  doc_type: {m.get('doc_type', '?')}")
+        lines.append(f"  author: {m.get('author', '?')}")
+        lines.append(f"  section: {m.get('section', '?')}")
+    elif m.get("corpus"):
         lines.append(f"  corpus: {m['corpus']}")
         lines.append(f"  doc_type: {m.get('doc_type', '?')}")
         lines.append(f"  actor: {m.get('actor', '?')}")
@@ -197,6 +210,8 @@ def cmd_query(args):
         doctrines=args.doctrine,
         corpus=args.corpus,
         doc_types=args.doc_type,
+        authors=args.author,
+        sections=args.section,
         top_k=args.top_k,
     )
     if args.json:
@@ -220,6 +235,10 @@ def cmd_query(args):
             print(f"  Filter corpus: {', '.join(args.corpus)}")
         if args.doc_type:
             print(f"  Filter doc_type: {', '.join(args.doc_type)}")
+        if args.author:
+            print(f"  Filter author: {', '.join(args.author)}")
+        if args.section:
+            print(f"  Filter section: {', '.join(args.section)}")
         print()
         for i, node in enumerate(nodes):
             print(format_node(i, node))
@@ -275,6 +294,10 @@ def main():
                          help="Filter by corpus (repeatable). E.g. section122_global_tariff")
     p_query.add_argument("--doc-type", action="append",
                          help="Filter by doc_type (repeatable). E.g. statute, proclamation, fact_sheet")
+    p_query.add_argument("-a", "--author", action="append",
+                         help="Filter by author (repeatable). For national_review corpus")
+    p_query.add_argument("-s", "--section", action="append",
+                         help="Filter by section (repeatable). E.g. Bench Memos, The Corner")
     p_query.add_argument("-k", "--top-k", type=int, default=10)
     p_query.add_argument("--json", action="store_true")
     p_query.set_defaults(func=cmd_query)

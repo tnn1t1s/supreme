@@ -8,6 +8,9 @@ Cases:
 - *Learning Resources, Inc. v. Trump* (24-1287, 25-250), decided 2026-02-20
 - Section 122 Global Import Surcharge (19 U.S.C. § 2132), proclaimed 2026-02-20
 
+Media Corpora:
+- National Review (NR-AA): Structured analysis of NR subscription articles
+
 ## Stack
 
 ```yaml
@@ -28,7 +31,11 @@ Vector Index: .rag_index_decision/
 ADK Package: decision_rag_adk/
 ADK Prompts: decision_rag_adk/prompts/
 ADK Tools: decision_rag_adk/tools/
-CLI Tools: tools/bin/{decision-rag,decision-adk,extract-decision,extract-section122}
+Corpus 3: docs/decision/national_review_corpus/
+NR Sources: docs/sources/national_review/YYYY-MM-DD/<slug>.json
+NR Blocks: docs/decision/national_review_corpus/blocks/nr_analysis/{NNNN}.md
+NR Prompt: tools/prompts/nr_reader.md
+CLI Tools: tools/bin/{decision-rag,decision-adk,extract-decision,extract-section122,nr-ingest}
 API Key: decision_rag_adk/.env (GOOGLE_API_KEY)
 ```
 
@@ -66,10 +73,17 @@ Retrieval:
   just decision-query "q"     # Search all opinions
   just decision-justice "q" J # Filter by justice
   just decision-doctrine "q" d # Filter by doctrine
-  just decision-corpus "q" c  # Filter by corpus (e.g. section122_global_tariff)
-  just decision-doctype "q" dt # Filter by doc type (statute|proclamation|fact_sheet)
+  just decision-corpus "q" c  # Filter by corpus (e.g. section122_global_tariff, national_review)
+  just decision-doctype "q" dt # Filter by doc type (statute|proclamation|fact_sheet|nr_analysis)
   just decision-json "q"     # JSON output
   just decision-list          # List indexed decisions
+
+National Review:
+  just nr-ingest              # Convert NR JSON → blocks → rebuild index
+  just nr-query "q"           # Query NR corpus
+  just nr-author "q" "Author" # Query NR by author
+  just nr-list                # List NR articles
+  just nr-dry-run             # Validate NR JSON without writing
 
 Ingestion:
   just decision-pipeline      # Extract PDF + build index (Learning Resources)
@@ -87,6 +101,8 @@ Fields (section122): corpus, doc_type, title, date, source_name, source_url, act
 Doctrines: Comma-separated strings | "none" for empty
 block_id format (decision): {docket}_{justice}_{opinion_type}_{NNNN}
 block_id format (section122): {date}_{corpus}_{doc_type}_{NNNN}
+Fields (national_review): corpus, doc_type, title, date, source_url, author, section, topic_tags, stance_*, block_id, doctrines_primary, doctrines_secondary
+block_id format (NR): {YYYYMMDD}_national_review_nr_analysis_{NNNN}
 ```
 
 ## Prompt Tuning

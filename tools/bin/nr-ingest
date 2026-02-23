@@ -1,0 +1,378 @@
+#!/usr/bin/env python3
+"""nr-ingest: Convert National Review JSON analysis artifacts into RAG-indexable blocks.
+
+Reads JSON from docs/sources/national_review/YYYY-MM-DD/*.json,
+validates against canonical schema, generates markdown blocks with YAML frontmatter,
+and writes a manifest.json for the national_review_corpus.
+
+Usage:
+  nr-ingest              # Convert all NR JSON artifacts to blocks + rebuild
+  nr-ingest --dry-run    # Validate and show what would be generated
+"""
+
+import argparse
+import json
+import re
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+SOURCES_DIR = PROJECT_ROOT / "docs" / "sources" / "national_review"
+CORPUS_DIR = PROJECT_ROOT / "docs" / "decision" / "national_review_corpus"
+BLOCKS_DIR = CORPUS_DIR / "blocks" / "nr_analysis"
+
+CORPUS = "national_review"
+
+REQUIRED_FIELDS = ["source", "url", "title", "author", "published_at", "section", "topic_tags", "stance_vector", "claims"]
+STANCE_KEYS = ["executive_power", "court_legitimacy", "congress_role"]
+STANCE_VALUES = {"favor_constraints", "favor_discretion", "mixed", "support", "skeptical", "pro_congress", "anti_congress"}
+SUPPORT_TYPES = {"textual", "historical", "institutional", "economic", "moral"}
+
+DOCTRINE_PATTERNS = {
+    "major_questions": [
+        r"major questions",
+        r"major.questions doctrine",
+        r"extraordinary.{0,30}delegat",
+        r"clear congressional authorization",
+        r"economic and political significance",
+        r"transformative expansion",
+    ],
+    "clear_statement": [
+        r"clear.statement rule",
+        r"clear statement",
+        r"express words",
+        r"expressly (given|conferred|authorized)",
+        r"clear(ly)? authoriz",
+        r"must.*point to.*clear",
+    ],
+    "nondelegation": [
+        r"nondelegation",
+        r"non.delegation",
+        r"intelligible principle",
+        r"legislative power.*delegat",
+        r"delegat.*legislative power",
+        r"Article I.*vest",
+    ],
+    "separation_of_powers": [
+        r"separation of powers",
+        r"legislative.{0,15}executive",
+        r"executive.{0,15}legislative",
+        r"Article I.*Article II",
+        r"Vesting Clause",
+        r"constitutional structure",
+    ],
+    "taxing_power": [
+        r"taxing power",
+        r"power to tax",
+        r"power to impose tariffs",
+        r"Taxes, Duties, Imposts",
+        r"revenue.raising",
+        r"birth.right power",
+        r"access to the pockets",
+    ],
+    "statutory_interpretation": [
+        r"ordinary meaning",
+        r"statutory (text|construction|interpretation)",
+        r"plain (meaning|text|reading)",
+        r"neighboring words",
+        r"noscitur a sociis",
+        r"textual(ist|ism)?",
+    ],
+    "foreign_affairs": [
+        r"foreign affairs",
+        r"foreign (policy|relations|commerce)",
+        r"national security",
+        r"external affairs",
+        r"warmaking power",
+        r"Commander in Chief",
+    ],
+    "emergency_powers": [
+        r"emergency power",
+        r"national emergenc",
+        r"unusual and extraordinary",
+        r"IEEPA.*emergenc",
+        r"emergenc.*IEEPA",
+        r"Youngstown",
+    ],
+    "congressional_delegation": [
+        r"Congress.*delegat",
+        r"delegat.*Congress",
+        r"tariff.*delegat",
+        r"delegat.*tariff",
+        r"historical.*delegat",
+        r"delegation.*statute",
+        r"President shall proclaim",
+        r"President.*authorized.*proclaim",
+        r"empowers the President",
+        r"authority.*President",
+    ],
+    "trade_policy": [
+        r"balance.of.payments",
+        r"trade deficit",
+        r"import surcharge",
+        r"import restrict",
+        r"import dut",
+        r"tariff",
+        r"customs duty",
+        r"ad valorem",
+        r"Trade Act",
+        r"section 122",
+        r"quotas?",
+    ],
+}
+
+DOCTRINE_PRIMARY_THRESHOLD = 3
+DOCTRINE_SECONDARY_THRESHOLD = 1
+
+
+def classify_doctrines(text):
+    text_lower = text.lower()
+    scores = {}
+    for doctrine, patterns in DOCTRINE_PATTERNS.items():
+        count = 0
+        for pat in patterns:
+            count += len(re.findall(pat, text_lower))
+        if count >= DOCTRINE_SECONDARY_THRESHOLD:
+            scores[doctrine] = count
+
+    ranked = sorted(scores.items(), key=lambda x: -x[1])
+
+    primary = []
+    secondary = []
+    for doctrine, count in ranked:
+        if count >= DOCTRINE_PRIMARY_THRESHOLD and len(primary) < 3:
+            primary.append(doctrine)
+        elif len(secondary) < 2:
+            secondary.append(doctrine)
+        if len(primary) + len(secondary) >= 5:
+            break
+
+    return primary, secondary
+
+
+def validate_article(data, filepath):
+    errors = []
+    for field in REQUIRED_FIELDS:
+        if field not in data:
+            errors.append(f"Missing required field: {field}")
+
+    if "stance_vector" in data:
+        sv = data["stance_vector"]
+        for key in STANCE_KEYS:
+            if key not in sv:
+                errors.append(f"stance_vector missing key: {key}")
+            elif sv[key] not in STANCE_VALUES:
+                errors.append(f"stance_vector.{key} invalid value: {sv[key]}")
+
+    if "claims" in data:
+        if not isinstance(data["claims"], list) or len(data["claims"]) == 0:
+            errors.append("claims must be a non-empty array")
+        else:
+            for i, c in enumerate(data["claims"]):
+                if "claim" not in c:
+                    errors.append(f"claims[{i}] missing 'claim'")
+                if "support_type" not in c:
+                    errors.append(f"claims[{i}] missing 'support_type'")
+                elif c["support_type"] not in SUPPORT_TYPES:
+                    errors.append(f"claims[{i}].support_type invalid: {c['support_type']}")
+
+    if "anchors" in data:
+        for i, a in enumerate(data.get("anchors", [])):
+            if "quote" in a and len(a["quote"].split()) > 25:
+                errors.append(f"anchors[{i}].quote exceeds 25 words")
+
+    if "published_at" in data:
+        try:
+            datetime.strptime(data["published_at"], "%Y-%m-%d")
+        except ValueError:
+            errors.append(f"published_at invalid date format: {data['published_at']}")
+
+    if errors:
+        print(f"VALIDATION ERRORS in {filepath}:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        return False
+    return True
+
+
+def build_block_text(data):
+    parts = []
+    parts.append(f"# {data['title']}")
+    parts.append(f"Author: {data['author']}")
+    parts.append(f"Section: {data['section']}")
+    parts.append("")
+
+    if data.get("claims"):
+        parts.append("## Claims")
+        for c in data["claims"]:
+            parts.append(f"- [{c['support_type']}] {c['claim']}")
+        parts.append("")
+
+    if data.get("assumptions"):
+        parts.append("## Assumptions")
+        for a in data["assumptions"]:
+            parts.append(f"- {a}")
+        parts.append("")
+
+    if data.get("tensions_or_flags"):
+        parts.append("## Tensions and Flags")
+        for t in data["tensions_or_flags"]:
+            parts.append(f"- {t}")
+        parts.append("")
+
+    if data.get("topic_tags"):
+        parts.append(f"Topics: {', '.join(data['topic_tags'])}")
+
+    if data.get("stance_vector"):
+        sv = data["stance_vector"]
+        stance_parts = [f"{k}={v}" for k, v in sv.items()]
+        parts.append(f"Stance: {', '.join(stance_parts)}")
+
+    return "\n".join(parts)
+
+
+def write_block(block_num, data, dry_run=False):
+    date_str = data["published_at"].replace("-", "")
+    block_id = f"{date_str}_{CORPUS}_nr_analysis_{block_num:04d}"
+    block_text = build_block_text(data)
+    primary, secondary = classify_doctrines(block_text)
+    primary_str = ",".join(primary) if primary else "none"
+    secondary_str = ",".join(secondary) if secondary else "none"
+
+    title_escaped = data["title"].replace('"', '\\"')
+    author_escaped = data["author"].replace('"', '\\"')
+    tags_str = ",".join(data.get("topic_tags", []))
+
+    sv = data.get("stance_vector", {})
+    sv_exec = sv.get("executive_power", "mixed")
+    sv_court = sv.get("court_legitimacy", "mixed")
+    sv_congress = sv.get("congress_role", "mixed")
+
+    frontmatter = f"""---
+corpus: "{CORPUS}"
+doc_type: "nr_analysis"
+title: "{title_escaped}"
+date: "{data['published_at']}"
+source_url: "{data['url']}"
+author: "{author_escaped}"
+section: "{data['section']}"
+topic_tags: "{tags_str}"
+stance_executive_power: "{sv_exec}"
+stance_court_legitimacy: "{sv_court}"
+stance_congress_role: "{sv_congress}"
+block_id: "{block_id}"
+doctrines_primary: "{primary_str}"
+doctrines_secondary: "{secondary_str}"
+---
+
+"""
+    content = frontmatter + block_text.strip() + "\n"
+    filepath = BLOCKS_DIR / f"{block_num:04d}.md"
+
+    if not dry_run:
+        filepath.write_text(content)
+
+    return {
+        "block_id": block_id,
+        "title": data["title"],
+        "author": data["author"],
+        "date": data["published_at"],
+        "section": data["section"],
+        "url": data["url"],
+        "file": str(filepath.relative_to(CORPUS_DIR)),
+        "word_count": len(block_text.split()),
+        "claim_count": len(data.get("claims", [])),
+        "doctrines_primary": primary,
+        "doctrines_secondary": secondary,
+    }
+
+
+def find_json_files():
+    articles = []
+    if not SOURCES_DIR.exists():
+        return articles
+    for date_dir in sorted(SOURCES_DIR.iterdir()):
+        if not date_dir.is_dir():
+            continue
+        for json_file in sorted(date_dir.glob("*.json")):
+            articles.append(json_file)
+    return articles
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="nr-ingest", description="Convert NR JSON artifacts to RAG blocks")
+    parser.add_argument("--dry-run", action="store_true", help="Validate and show what would be generated")
+    args = parser.parse_args()
+
+    json_files = find_json_files()
+    if not json_files:
+        print("No NR JSON artifacts found in docs/sources/national_review/", file=sys.stderr)
+        print("Expected: docs/sources/national_review/YYYY-MM-DD/<slug>.json", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Found {len(json_files)} NR article(s)")
+
+    valid_articles = []
+    for jf in json_files:
+        data = json.loads(jf.read_text())
+        if validate_article(data, jf):
+            valid_articles.append((jf, data))
+        else:
+            print(f"SKIP: {jf} (validation failed)", file=sys.stderr)
+
+    if not valid_articles:
+        print("No valid articles to process", file=sys.stderr)
+        sys.exit(1)
+
+    if not args.dry_run:
+        BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+        for f in BLOCKS_DIR.glob("*.md"):
+            f.unlink()
+
+    manifest = {
+        "corpus": CORPUS,
+        "title": "National Review Analysis Corpus",
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "description": "Structured analysis artifacts from National Review subscription reading",
+        "articles": [],
+        "blocks": [],
+    }
+
+    for i, (jf, data) in enumerate(valid_articles, 1):
+        bm = write_block(i, data, dry_run=args.dry_run)
+        manifest["articles"].append({
+            "source_file": str(jf.relative_to(PROJECT_ROOT)),
+            "title": data["title"],
+            "author": data["author"],
+            "date": data["published_at"],
+            "section": data["section"],
+        })
+        manifest["blocks"].append(bm)
+        action = "Would generate" if args.dry_run else "Generated"
+        print(f"  {action} block {i:04d}: {data['title'][:60]}")
+
+    if not args.dry_run:
+        manifest_path = CORPUS_DIR / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+        print(f"\nDone: {len(valid_articles)} blocks")
+        print(f"Manifest: {manifest_path}")
+        print(f"Blocks:   {BLOCKS_DIR}")
+    else:
+        print(f"\nDry run: {len(valid_articles)} blocks would be generated")
+
+    doctrine_counts = {}
+    for bm in manifest["blocks"]:
+        for d in bm.get("doctrines_primary", []):
+            doctrine_counts[d] = doctrine_counts.get(d, 0) + 1
+        for d in bm.get("doctrines_secondary", []):
+            doctrine_counts[d] = doctrine_counts.get(d, 0) + 1
+
+    if doctrine_counts:
+        print(f"\nDoctrine distribution:")
+        for d, c in sorted(doctrine_counts.items(), key=lambda x: -x[1]):
+            print(f"  {d:30s} {c:3d} blocks")
+
+
+if __name__ == "__main__":
+    main()

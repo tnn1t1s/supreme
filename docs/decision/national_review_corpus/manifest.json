@@ -1,0 +1,62 @@
+{
+  "corpus": "national_review",
+  "title": "National Review Analysis Corpus",
+  "date": "2026-02-22",
+  "description": "Structured analysis artifacts from National Review subscription reading",
+  "articles": [
+    {
+      "source_file": "docs/sources/national_review/2026-02-21/trumps-section-122-tariffs-are-illegal.json",
+      "title": "Why Trump's Section 122 Tariffs Are Illegal",
+      "author": "Andrew C. McCarthy",
+      "date": "2026-02-21",
+      "section": "The Corner"
+    },
+    {
+      "source_file": "docs/sources/national_review/2026-02-22/scotus-tariff-ruling-test.json",
+      "title": "The Court Got It Right on Tariff Authority",
+      "author": "Ed Whelan",
+      "date": "2026-02-22",
+      "section": "Bench Memos"
+    }
+  ],
+  "blocks": [
+    {
+      "block_id": "20260221_national_review_nr_analysis_0001",
+      "title": "Why Trump's Section 122 Tariffs Are Illegal",
+      "author": "Andrew C. McCarthy",
+      "date": "2026-02-21",
+      "section": "The Corner",
+      "url": "https://www.nationalreview.com/corner/trumps-section-122-tariffs-are-illegal/",
+      "file": "blocks/nr_analysis/0001.md",
+      "word_count": 348,
+      "claim_count": 6,
+      "doctrines_primary": [
+        "trade_policy",
+        "statutory_interpretation"
+      ],
+      "doctrines_secondary": [
+        "separation_of_powers",
+        "congressional_delegation"
+      ]
+    },
+    {
+      "block_id": "20260222_national_review_nr_analysis_0002",
+      "title": "The Court Got It Right on Tariff Authority",
+      "author": "Ed Whelan",
+      "date": "2026-02-22",
+      "section": "Bench Memos",
+      "url": "https://www.nationalreview.com/bench-memos/test-article",
+      "file": "blocks/nr_analysis/0002.md",
+      "word_count": 129,
+      "claim_count": 3,
+      "doctrines_primary": [
+        "major_questions",
+        "trade_policy"
+      ],
+      "doctrines_secondary": [
+        "congressional_delegation",
+        "statutory_interpretation"
+      ]
+    }
+  ]
+}

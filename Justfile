@@ -109,6 +109,30 @@ section122-pipeline:
 setup-decision:
     .venv/bin/pip install pdfplumber
 
+# === National Review Analysis ===
+nring := "tools/bin/nr-ingest"
+
+# Convert NR JSON artifacts to blocks + rebuild index
+nr-ingest:
+    {{venv}} {{nring}}
+    {{venv}} {{drag}} ingest
+
+# Query NR corpus specifically
+nr-query q:
+    {{venv}} {{drag}} query "{{q}}" -c national_review
+
+# Query NR by author
+nr-author q a:
+    {{venv}} {{drag}} query "{{q}}" -c national_review -a "{{a}}"
+
+# List NR articles (via manifest)
+nr-list:
+    {{venv}} {{drag}} list
+
+# Dry-run NR ingest (validate only)
+nr-dry-run:
+    {{venv}} {{nring}} --dry-run
+
 # === Decision ADK (6-agent analysis pipeline) ===
 
 # Interactive CLI analysis
@@ -153,3 +177,46 @@ adk-agents:
 # Print a specific agent's system prompt
 adk-prompt a:
     {{venv}} {{sessions}} prompt {{a}}
+
+# === DAP Trace Analysis ===
+dap := "tools/bin/dap-trace"
+
+# List sessions with DAP plan summaries
+dap-list:
+    {{venv}} {{dap}} list
+
+# Show compiled plan for a session
+dap-plan id:
+    {{venv}} {{dap}} plan "{{id}}"
+
+# Show plan for specific query in session
+dap-plan-q id q:
+    {{venv}} {{dap}} plan "{{id}}" -q {{q}}
+
+# Agent timing waterfall
+dap-timeline id:
+    {{venv}} {{dap}} timeline "{{id}}"
+
+# Validate plan vs actual execution
+dap-validate id:
+    {{venv}} {{dap}} validate "{{id}}"
+
+# Compare two sessions side-by-side
+dap-compare a b:
+    {{venv}} {{dap}} compare "{{a}}" "{{b}}"
+
+# Dry-run: show features for a query
+dap-features q:
+    {{venv}} {{dap}} features "{{q}}"
+
+# Dry-run: show compiled plan for a query
+dap-compile q:
+    {{venv}} {{dap}} compile "{{q}}"
+
+# Dry-run: show features with LLM planner
+dap-features-llm q:
+    {{venv}} {{dap}} features "{{q}}" --llm
+
+# Dry-run: show compiled plan with LLM planner
+dap-compile-llm q:
+    {{venv}} {{dap}} compile "{{q}}" --llm

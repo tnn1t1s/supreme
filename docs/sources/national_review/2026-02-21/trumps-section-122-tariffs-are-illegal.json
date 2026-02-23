@@ -1,0 +1,82 @@
+{
+  "source": "National Review",
+  "url": "https://www.nationalreview.com/corner/trumps-section-122-tariffs-are-illegal/",
+  "title": "Why Trump's Section 122 Tariffs Are Illegal",
+  "author": "Andrew C. McCarthy",
+  "published_at": "2026-02-21",
+  "section": "The Corner",
+  "topic_tags": [
+    "SCOTUS",
+    "tariffs",
+    "executive_power",
+    "section_122",
+    "separation_of_powers",
+    "balance_of_payments",
+    "IEEPA",
+    "congressional_delegation"
+  ],
+  "stance_vector": {
+    "executive_power": "favor_constraints",
+    "court_legitimacy": "support",
+    "congress_role": "pro_congress"
+  },
+  "claims": [
+    {
+      "claim": "The Section 122 tariffs are more clearly illegal than the IEEPA tariffs because the statutory precondition — a large and serious balance-of-payments deficit — does not exist.",
+      "support_type": "textual"
+    },
+    {
+      "claim": "Trump conflates the balance of trade with the balance of payments, which are distinct economic concepts; the U.S. has no overall balance-of-payments deficit.",
+      "support_type": "economic"
+    },
+    {
+      "claim": "Section 122 was enacted to address a specific historical crisis under the Bretton Woods system and those conditions no longer obtain in the modern floating-dollar economy.",
+      "support_type": "historical"
+    },
+    {
+      "claim": "The president has no inherent tariff authority and must meet the statutory preconditions Congress set in Section 122, which he cannot satisfy.",
+      "support_type": "textual"
+    },
+    {
+      "claim": "Congressional Republicans are derelict in exercising oversight of executive tariff abuse because they only care about rule of law when Democrats hold the White House.",
+      "support_type": "institutional"
+    },
+    {
+      "claim": "The Supreme Court's 6-3 decision in Learning Resources was correct, easily foreseeable, and grounded in bedrock separation of powers principles.",
+      "support_type": "institutional"
+    }
+  ],
+  "anchors": [
+    {
+      "quote": "tariffs are taxes (in this instance, massive taxes, overwhelmingly paid by Americans)",
+      "note": "Core framing: tariffs = taxes, invoking Congress's constitutional taxing power"
+    },
+    {
+      "quote": "large and serious United States balance-of-payments deficits",
+      "note": "Direct statutory text of Section 122 precondition that McCarthy argues is unmet"
+    },
+    {
+      "quote": "These new tariffs are even more clearly illegal than Trump's IEEPA tariffs",
+      "note": "Escalation framing — positions Section 122 as worse legal ground than IEEPA"
+    }
+  ],
+  "assumptions": [
+    "The statutory text of Section 122 must be read narrowly against its Bretton Woods historical context",
+    "Balance of payments and balance of trade are legally distinct concepts that courts will enforce",
+    "The dollar's reserve currency status and strong capital inflows definitively negate any balance-of-payments crisis claim",
+    "Congressional dereliction does not expand executive power — the constitutional structure still constrains",
+    "The Court's IEEPA ruling establishes a framework that makes Section 122 tariffs even harder to defend"
+  ],
+  "tensions_or_flags": [
+    "Assumes courts will apply the same skepticism to Section 122 as to IEEPA, but Section 122 has never been litigated in this context",
+    "Does not engage with possible executive arguments that modern trade deficits constitute balance-of-payments problems under a broader reading",
+    "Treats congressional inaction as pure dereliction rather than considering it as implicit tolerance of executive trade action",
+    "Strong normative framing (presidential attacks are 'unmitigated disgrace') may reduce analytical weight of legal claims"
+  ],
+  "questions_for_cross_analysis": [
+    "Does the statutory text of 19 U.S.C. § 2132 actually distinguish between trade deficits and balance-of-payments deficits?",
+    "Did any justices in Learning Resources address Section 122 as an alternative statutory basis?",
+    "What is the actual current U.S. balance-of-payments position according to BEA data?",
+    "Does the 150-day / 15% cap in Section 122 affect the legal analysis differently than IEEPA's open-ended authority?"
+  ]
+}
